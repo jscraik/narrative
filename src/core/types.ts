@@ -42,9 +42,64 @@ export type SessionExcerpt = {
 export type TimelineStatus = 'ok' | 'warn' | 'error';
 
 export type TimelineBadge = {
-  type: 'file' | 'test';
+  type: 'file' | 'test' | 'trace';
   label: string;
   status?: 'passed' | 'failed' | 'mixed';
+};
+
+export type TraceContributorType = 'human' | 'ai' | 'mixed' | 'unknown';
+
+export type TraceContributor = {
+  type: TraceContributorType;
+  modelId?: string;
+};
+
+export type TraceRange = {
+  startLine: number;
+  endLine: number;
+  contentHash?: string;
+  contributor?: TraceContributor;
+};
+
+export type TraceConversation = {
+  url?: string;
+  contributor?: TraceContributor;
+  ranges: TraceRange[];
+  related?: Array<{ type: string; url: string }>;
+};
+
+export type TraceFile = {
+  path: string;
+  conversations: TraceConversation[];
+};
+
+export type TraceRecord = {
+  id: string;
+  version: string;
+  timestamp: string;
+  vcs: { type: 'git'; revision: string };
+  tool?: { name?: string; version?: string };
+  files: TraceFile[];
+  metadata?: Record<string, unknown>;
+};
+
+export type TraceFileSummary = {
+  path: string;
+  aiLines: number;
+  humanLines: number;
+  mixedLines: number;
+  unknownLines: number;
+  aiPercent: number;
+};
+
+export type TraceCommitSummary = {
+  commitSha: string;
+  aiLines: number;
+  humanLines: number;
+  mixedLines: number;
+  unknownLines: number;
+  aiPercent: number;
+  modelIds: string[];
 };
 
 export type TimelineNode = {
@@ -69,6 +124,10 @@ export type BranchViewModel = {
   sessionExcerpts?: SessionExcerpt[];
   filesChanged?: FileChange[];
   diffsByFile?: Record<string, string>;
+  traceSummaries?: {
+    byCommit: Record<string, TraceCommitSummary>;
+    byFile: Record<string, TraceFileSummary>;
+  };
   meta?: {
     repoPath?: string;
     branchName?: string;

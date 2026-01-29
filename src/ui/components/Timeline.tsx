@@ -21,12 +21,12 @@ function BadgePill({ badge }: { badge: TimelineBadge }) {
       );
     }
   }
-  
-  return (
-    <span className="pill-file">
-      {badge.label}
-    </span>
-  );
+
+  if (badge.type === 'trace') {
+    return <span className="pill-trace-ai">{badge.label}</span>;
+  }
+
+  return <span className="pill-file">{badge.label}</span>;
 }
 
 export function Timeline(props: {
@@ -54,7 +54,7 @@ export function Timeline(props: {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="flex items-center justify-center w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition-colors"
+          className="flex items-center justify-center w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 text-stone-500 hover:bg-stone-100 hover:text-stone-700 active:bg-stone-200 active:scale-95 transition-all"
           onClick={() => scrollBy(-420)}
           aria-label="Scroll timeline left"
         >
@@ -116,7 +116,7 @@ export function Timeline(props: {
 
         <button
           type="button"
-          className="flex items-center justify-center w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition-colors"
+          className="flex items-center justify-center w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 text-stone-500 hover:bg-stone-100 hover:text-stone-700 active:bg-stone-200 active:scale-95 transition-all"
           onClick={() => scrollBy(420)}
           aria-label="Scroll timeline right"
         >

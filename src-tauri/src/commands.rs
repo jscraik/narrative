@@ -38,6 +38,8 @@ pub fn ensure_narrative_dirs(repo_root: String) -> Result<(), String> {
   fs::create_dir_all(base.join("meta/commits")).map_err(|e| e.to_string())?;
   fs::create_dir_all(base.join("meta/branches")).map_err(|e| e.to_string())?;
   fs::create_dir_all(base.join("sessions/imported")).map_err(|e| e.to_string())?;
+  fs::create_dir_all(base.join("trace")).map_err(|e| e.to_string())?;
+  fs::create_dir_all(base.join("trace/generated")).map_err(|e| e.to_string())?;
   Ok(())
 }
 

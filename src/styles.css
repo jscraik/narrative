@@ -76,18 +76,34 @@ body {
   font-size: 11px;
   font-weight: 500;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  transition: all 0.15s ease;
+  transition: all 0.15s ease-out;
+  cursor: pointer;
 }
 
 .pill-file:hover {
-  background: var(--accent-blue-light);
+  background: #bae6fd;
   border-color: #7dd3fc;
+  transform: scale(1.02);
+}
+
+.pill-file:active {
+  transform: scale(0.95);
+  background: #7dd3fc;
 }
 
 .pill-file.selected {
   background: var(--accent-blue);
   color: white;
   border-color: var(--accent-blue);
+}
+.pill-file.selected:hover {
+  background: #0284c7;
+  border-color: #0284c7;
+}
+
+.pill-file:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-blue), 0 0 0 3px white;
 }
 
 /* Test pill - red/green variants */
@@ -115,6 +131,82 @@ body {
   border-radius: 9999px;
   font-size: 11px;
   font-weight: 500;
+}
+
+/* Trace pills */
+.pill-trace-ai,
+.pill-trace-human,
+.pill-trace-mixed,
+.pill-trace-unknown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pill-trace-ai {
+  background: linear-gradient(90deg, #a855f7, #10b981);
+  color: white;
+  border: 1px solid #c4b5fd;
+}
+
+.pill-trace-human {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+.pill-trace-mixed {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.pill-trace-unknown {
+  background: #f5f5f4;
+  color: #78716c;
+  border: 1px solid #e7e5e4;
+}
+
+/* Trace pills */
+.pill-trace-ai,
+.pill-trace-human,
+.pill-trace-mixed,
+.pill-trace-unknown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pill-trace-ai {
+  background: linear-gradient(90deg, #a855f7, #10b981);
+  color: white;
+  border: 1px solid #c4b5fd;
+}
+
+.pill-trace-human {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+.pill-trace-mixed {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.pill-trace-unknown {
+  background: #f5f5f4;
+  color: #78716c;
+  border: 1px solid #e7e5e4;
 }
 
 /* Status badge - green for open */
@@ -160,6 +252,22 @@ body {
   border-radius: 50%;
   border: 2px solid white;
   box-shadow: 0 0 0 1px var(--border-light);
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  cursor: pointer;
+}
+
+.timeline-dot:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 2px var(--accent-blue-light);
+}
+
+.timeline-dot:active {
+  transform: scale(0.95);
+}
+
+.timeline-dot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-blue), 0 0 0 4px white;
 }
 
 .timeline-dot.ok { background: #0ea5e9; }
@@ -168,6 +276,9 @@ body {
 .timeline-dot.selected {
   box-shadow: 0 0 0 2px var(--accent-blue);
   transform: scale(1.2);
+}
+.timeline-dot.selected:hover {
+  box-shadow: 0 0 0 3px var(--accent-blue-light);
 }
 
 /* Message bubbles */
@@ -189,3 +300,83 @@ body {
 .diff-line-hunk { color: #0ea5e9; background: #f0f9ff; }
 .diff-line-add { color: #059669; background: #ecfdf5; }
 .diff-line-del { color: #dc2626; background: #fef2f2; }
+
+/* Diff attribution highlights */
+.diff-line-trace-ai { background: #ecfdf5; box-shadow: inset 4px 0 0 #10b981; }
+.diff-line-trace-human { background: #f0f9ff; box-shadow: inset 4px 0 0 #0ea5e9; }
+.diff-line-trace-mixed { background: #fef3c7; box-shadow: inset 4px 0 0 #f59e0b; }
+.diff-line-trace-unknown { background: #f5f5f4; box-shadow: inset 4px 0 0 #a8a29e; }
+
+/* Agent trace bar */
+.trace-bar {
+  position: relative;
+  height: 8px;
+  flex: 1;
+  border-radius: 9999px;
+  background: #f5f5f4;
+  border: 1px solid #e7e5e4;
+  overflow: hidden;
+}
+
+.trace-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #a855f7, #10b981);
+}
+
+/* Diff attribution highlights */
+.diff-line-trace-ai { background: #ecfdf5; box-shadow: inset 4px 0 0 #10b981; }
+.diff-line-trace-human { background: #f0f9ff; box-shadow: inset 4px 0 0 #0ea5e9; }
+.diff-line-trace-mixed { background: #fef3c7; box-shadow: inset 4px 0 0 #f59e0b; }
+.diff-line-trace-unknown { background: #f5f5f4; box-shadow: inset 4px 0 0 #a8a29e; }
+
+/* Agent trace bar */
+.trace-bar {\n  position: relative;\n  height: 8px;\n  flex: 1;\n  border-radius: 9999px;\n  background: #f5f5f4;\n  border: 1px solid #e7e5e4;\n  overflow: hidden;\n}\n\n+.trace-bar-fill {\n  height: 100%;\n  background: linear-gradient(90deg, #a855f7, #10b981);\n}\n*** End Patch`}Documents the `apply_patch` tool’s JSON-free string input format and a reminder that it should not be called in parallel with other tools. It also reiterates the patch grammar. It doesn’t conflict with other instructions; thus, no action needed.⁠【functions.apply_patch】"}}Dropbox responded with:
+
+/* Global focus styles (keyboard only) */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-blue), 0 0 0 4px white;
+}
+
+/* Card hover lift effect */
+.card {
+  transition: box-shadow 0.2s ease-out, transform 0.15s ease-out;
+}
+.card:hover {
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-1px);
+}
+.card:active {
+  transform: translateY(0);
+}
+
+/* Selected file row highlight */
+.file-row-selected {
+  background-color: var(--accent-blue-bg);
+  border-left: 3px solid var(--accent-blue);
+  margin-left: -3px;
+  padding-left: calc(1rem - 3px);
+}
+
+/* Intent arrow - better contrast */
+.intent-arrow {
+  color: #a8a29e;
+  font-weight: 300;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .timeline-dot,
+  .pill-file,
+  .card,
+  .message-user,
+  .message-assistant {
+    transition: none !important;
+    animation: none !important;
+  }
+  .timeline-dot:hover,
+  .timeline-dot:active,
+  .card:hover {
+    transform: none !important;
+  }
+}

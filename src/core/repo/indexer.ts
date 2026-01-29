@@ -10,6 +10,7 @@ import {
   writeRepoMeta
 } from './meta';
 import { loadSessionExcerpts } from './sessions';
+import { scanAgentTraceRecords } from './agentTrace';
 
 export type RepoIndex = {
   repoId: number;
@@ -36,24 +37,35 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     tag: c.sha.slice(0, 7)
   }));
 
+  const sessionExcerpts = await loadSessionExcerpts(root, 1);
+  const trace = await scanAgentTraceRecords(root, repoId, commits.map((c) => c.sha));
+
   const timeline: TimelineNode[] = commits
     .slice()
     .reverse()
-    .map((c) => ({
-      id: c.sha,
-      type: 'commit',
-      label: c.subject,
-      atISO: c.authoredAtISO,
-      status: 'ok'
-    }));
+    .map((c) => {
+      const traceSummary = trace.byCommit[c.sha];
+      const traceBadge = traceSummary
+        ? { type: 'trace' as const, label: `AI ${traceSummary.aiPercent}%` }
+        : null;
+
+      return {
+        id: c.sha,
+        type: 'commit',
+        label: c.subject,
+        atISO: c.authoredAtISO,
+        status: 'ok',
+        badges: traceBadge ? [traceBadge] : undefined
+      };
+    });
 
   const stats = {
     added: agg.added,
     removed: agg.removed,
     files: agg.uniqueFiles,
     commits: commits.length,
-    prompts: 0,
-    responses: 0
+    prompts: trace.totals.conversations,
+    responses: trace.totals.ranges
   };
 
   // Best-effort: write shareable meta snapshots into `.narrative/meta/**`
@@ -85,8 +97,6 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     // ignore: repo may be read-only, or user may not want any working-tree writes during MVP
   }
 
-  const sessionExcerpts = await loadSessionExcerpts(root, 1);
-
   const model: BranchViewModel = {
     source: 'git',
     title: branch,
@@ -96,6 +106,7 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     intent,
     timeline,
     sessionExcerpts,
+    traceSummaries: { byCommit: trace.byCommit, byFile: trace.byFile },
     meta: { repoPath: root, branchName: branch, headSha }
   };
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { BranchViewModel, FileChange, TestRun } from '../../core/types';
+import type { BranchViewModel, FileChange, TestRun, TraceRange } from '../../core/types';
 import { FileSelectionProvider, useFileSelection } from '../../core/context/FileSelectionContext';
+import { AgentTraceSummary } from '../components/AgentTraceSummary';
 import { BranchHeader } from '../components/BranchHeader';
 import { DiffViewer } from '../components/DiffViewer';
 import { FilesChanged } from '../components/FilesChanged';
@@ -14,8 +15,10 @@ function BranchViewInner(props: {
   model: BranchViewModel;
   loadFilesForNode: (nodeId: string) => Promise<FileChange[]>;
   loadDiffForFile: (nodeId: string, filePath: string) => Promise<string>;
+  loadTraceRangesForFile: (nodeId: string, filePath: string) => Promise<TraceRange[]>;
+  onExportAgentTrace: (nodeId: string, files: FileChange[]) => void;
 }) {
-  const { model, loadFilesForNode, loadDiffForFile } = props;
+  const { model, loadFilesForNode, loadDiffForFile, loadTraceRangesForFile, onExportAgentTrace } = props;
   const { selectedFile, selectFile } = useFileSelection();
 
   const defaultSelectedId = useMemo(() => {
@@ -30,6 +33,8 @@ function BranchViewInner(props: {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [loadingDiff, setLoadingDiff] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [traceRanges, setTraceRanges] = useState<TraceRange[]>([]);
+  const [loadingTrace, setLoadingTrace] = useState(false);
 
   // Get test run for current node
   const testRun = useMemo((): TestRun | undefined => {
@@ -109,6 +114,30 @@ function BranchViewInner(props: {
     };
   }, [selectedNodeId, selectedFile, loadDiffForFile]);
 
+  useEffect(() => {
+    if (!selectedNodeId || !selectedFile) return;
+    let cancelled = false;
+
+    setLoadingTrace(true);
+    loadTraceRangesForFile(selectedNodeId, selectedFile)
+      .then((ranges) => {
+        if (cancelled) return;
+        setTraceRanges(ranges);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTraceRanges([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoadingTrace(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedNodeId, selectedFile, loadTraceRangesForFile]);
+
   const handleFileClickFromSession = (path: string) => {
     const fileExists = files.some((f) => f.path === path);
     if (fileExists) {
@@ -134,7 +163,7 @@ function BranchViewInner(props: {
                   Loading files…
                 </div>
               ) : (
-                <FilesChanged files={files} title="FILES CHANGED" />
+                <FilesChanged files={files} title="FILES CHANGED" traceByFile={model.traceSummaries?.byFile} />
               )}
             </div>
 
@@ -152,9 +181,22 @@ function BranchViewInner(props: {
               selectedFile={selectedFile}
               onFileClick={handleFileClickFromSession}
             />
+            <AgentTraceSummary
+              summary={selectedNodeId ? model.traceSummaries?.byCommit[selectedNodeId] : undefined}
+              hasFiles={files.length > 0}
+              onExport={() => {
+                if (!selectedNodeId) return;
+                onExportAgentTrace(selectedNodeId, files);
+              }}
+            />
             <TestResultsPanel testRun={testRun} onFileClick={handleFileClickFromTest} />
             <div className="min-h-[200px] flex-1">
-              <DiffViewer title={selectedFile ?? 'DIFF'} diffText={diffText} loading={loadingDiff} />
+              <DiffViewer
+                title={selectedFile ?? 'DIFF'}
+                diffText={diffText}
+                loading={loadingDiff || loadingTrace}
+                traceRanges={traceRanges}
+              />
             </div>
           </div>
         </div>
@@ -169,6 +211,8 @@ export function BranchView(props: {
   model: BranchViewModel;
   loadFilesForNode: (nodeId: string) => Promise<FileChange[]>;
   loadDiffForFile: (nodeId: string, filePath: string) => Promise<string>;
+  loadTraceRangesForFile: (nodeId: string, filePath: string) => Promise<TraceRange[]>;
+  onExportAgentTrace: (nodeId: string, files: FileChange[]) => void;
 }) {
   return (
     <FileSelectionProvider>

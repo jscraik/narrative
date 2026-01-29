@@ -10,9 +10,10 @@ export function TopNav(props: {
   repoPath?: string | null;
   onOpenRepo: () => void;
   onImportSession?: () => void;
+  onImportAgentTrace?: () => void;
   importEnabled?: boolean;
 }) {
-  const { mode, onModeChange, repoPath, onOpenRepo, onImportSession, importEnabled } = props;
+  const { mode, onModeChange, repoPath, onOpenRepo, onImportSession, onImportAgentTrace, importEnabled } = props;
 
   const Tab = (p: { id: Mode; label: string; icon: ReactNode }) => (
     <button
@@ -54,14 +55,31 @@ export function TopNav(props: {
             disabled={!importEnabled}
             className={clsx(
               'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-              importEnabled 
-                ? 'bg-stone-100 text-stone-700 hover:bg-stone-200' 
+              importEnabled
+                ? 'bg-stone-100 text-stone-700 hover:bg-stone-200'
                 : 'bg-stone-50 text-stone-400 cursor-not-allowed'
             )}
             onClick={onImportSession}
           >
             <FileText className="h-4 w-4" />
             Import session…
+          </button>
+        ) : null}
+
+        {mode === 'repo' && onImportAgentTrace ? (
+          <button
+            type="button"
+            disabled={!importEnabled}
+            className={clsx(
+              'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              importEnabled
+                ? 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                : 'bg-stone-50 text-stone-400 cursor-not-allowed'
+            )}
+            onClick={onImportAgentTrace}
+          >
+            <FileText className="h-4 w-4" />
+            Import Agent Trace…
           </button>
         ) : null}
 

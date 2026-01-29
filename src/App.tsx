@@ -8,6 +8,14 @@ import { getCommitDiffForFile } from './core/repo/git';
 import { getOrLoadCommitFiles, indexRepo, type RepoIndex } from './core/repo/indexer';
 import { loadSessionExcerpts } from './core/repo/sessions';
 import { readTextFile, writeNarrativeFile } from './core/tauri/narrativeFs';
+import {
+  generateDerivedTraceRecord,
+  getSessionLinkForCommit,
+  getTraceRangesForCommitFile,
+  importAgentTraceFile,
+  scanAgentTraceRecords,
+  writeGeneratedTraceRecord
+} from './core/repo/agentTrace';
 import { TopNav, type Mode } from './ui/components/TopNav';
 import { BranchView } from './ui/views/BranchView';
 import { SpeculateView } from './ui/views/SpeculateView';
@@ -111,6 +119,53 @@ export default function App() {
     }
   }, [repoState]);
 
+  const importAgentTrace = useCallback(async () => {
+    if (repoState.status !== 'ready') return;
+    setActionError(null);
+
+    try {
+      const selected = await open({
+        multiple: false,
+        title: 'Import an Agent Trace JSON file',
+        filters: [{ name: 'Agent Trace', extensions: ['json'] }]
+      });
+
+      if (!selected || Array.isArray(selected)) return;
+
+      await importAgentTraceFile(repoState.repo.root, repoState.repo.repoId, selected);
+
+      const commitShas = repoState.model.timeline.map((n) => n.id);
+      const trace = await scanAgentTraceRecords(repoState.repo.root, repoState.repo.repoId, commitShas);
+
+      setRepoState((prev) => {
+        if (prev.status !== 'ready') return prev;
+        return {
+          ...prev,
+          model: {
+            ...prev.model,
+            traceSummaries: { byCommit: trace.byCommit, byFile: trace.byFile },
+            stats: {
+              ...prev.model.stats,
+              prompts: trace.totals.conversations,
+              responses: trace.totals.ranges
+            },
+            timeline: prev.model.timeline.map((node) => {
+              const traceSummary = trace.byCommit[node.id];
+              if (!traceSummary) return node;
+              const existing = node.badges?.filter((b) => b.type !== 'trace') ?? [];
+              return {
+                ...node,
+                badges: [...existing, { type: 'trace', label: `AI ${traceSummary.aiPercent}%` }]
+              };
+            })
+          }
+        };
+      });
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }, [repoState]);
+
   const model: BranchViewModel | null = useMemo(() => {
     if (mode === 'demo') return NearbyGridDemo;
     if (mode === 'repo' && repoState.status === 'ready') return repoState.model;
@@ -158,6 +213,65 @@ export default function App() {
     [model, repoState]
   );
 
+  const loadTraceRangesForFile = useCallback(
+    async (nodeId: string, filePath: string) => {
+      if (!model) return [];
+      if (model.source === 'demo') return [];
+      if (repoState.status !== 'ready') return [];
+      return await getTraceRangesForCommitFile(repoState.repo.repoId, nodeId, filePath);
+    },
+    [model, repoState]
+  );
+
+  const exportAgentTrace = useCallback(
+    async (nodeId: string, files: FileChange[]) => {
+      if (repoState.status !== 'ready') return;
+      setActionError(null);
+
+      try {
+        const sessionId = await getSessionLinkForCommit(repoState.repo.repoId, nodeId);
+        const record = await generateDerivedTraceRecord({
+          repoRoot: repoState.repo.root,
+          commitSha: nodeId,
+          files,
+          sessionId
+        });
+        await writeGeneratedTraceRecord(repoState.repo.root, record);
+
+        const commitShas = repoState.model.timeline.map((n) => n.id);
+        const trace = await scanAgentTraceRecords(repoState.repo.root, repoState.repo.repoId, commitShas);
+
+        setRepoState((prev) => {
+          if (prev.status !== 'ready') return prev;
+          return {
+            ...prev,
+            model: {
+              ...prev.model,
+              traceSummaries: { byCommit: trace.byCommit, byFile: trace.byFile },
+              stats: {
+                ...prev.model.stats,
+                prompts: trace.totals.conversations,
+                responses: trace.totals.ranges
+              },
+              timeline: prev.model.timeline.map((node) => {
+                const traceSummary = trace.byCommit[node.id];
+                if (!traceSummary) return node;
+                const existing = node.badges?.filter((b) => b.type !== 'trace') ?? [];
+                return {
+                  ...node,
+                  badges: [...existing, { type: 'trace', label: `AI ${traceSummary.aiPercent}%` }]
+                };
+              })
+            }
+          };
+        });
+      } catch (e: unknown) {
+        setActionError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [repoState]
+  );
+
   const importEnabled = mode === 'repo' && repoState.status === 'ready';
 
   return (
@@ -168,6 +282,7 @@ export default function App() {
         repoPath={repoPath}
         onOpenRepo={openRepo}
         onImportSession={importSession}
+        onImportAgentTrace={importAgentTrace}
         importEnabled={importEnabled}
       />
 
@@ -193,7 +308,13 @@ export default function App() {
             </div>
           </div>
         ) : model ? (
-          <BranchView model={model} loadFilesForNode={loadFilesForNode} loadDiffForFile={loadDiffForFile} />
+          <BranchView
+            model={model}
+            loadFilesForNode={loadFilesForNode}
+            loadDiffForFile={loadDiffForFile}
+            loadTraceRangesForFile={loadTraceRangesForFile}
+            onExportAgentTrace={exportAgentTrace}
+          />
         ) : (
           <div className="p-8 text-sm text-stone-500">Pick a mode.</div>
         )}

@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import type { FileChange } from '../../core/types';
+import type { FileChange, TraceFileSummary } from '../../core/types';
 import { useFileSelection } from '../../core/context/FileSelectionContext';
 
 function formatDelta(n: number) {
@@ -9,10 +9,12 @@ function formatDelta(n: number) {
 
 export function FilesChanged({
   files,
-  title
+  title,
+  traceByFile
 }: {
   files: FileChange[];
   title?: string;
+  traceByFile?: Record<string, TraceFileSummary>;
 }) {
   const { selectedFile, selectFile } = useFileSelection();
   const fileRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -41,10 +43,10 @@ export function FilesChanged({
                 if (el) fileRefs.current.set(f.path, el);
               }}
               type="button"
-              className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors ${
+              className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-all ${
                 selectedFile === f.path 
-                  ? 'bg-sky-50' 
-                  : 'hover:bg-stone-50'
+                  ? 'bg-sky-50 border-l-2 border-l-sky-500 -ml-[2px] pl-[18px]' 
+                  : 'hover:bg-stone-50 border-l-2 border-l-transparent'
               }`}
               onClick={() => selectFile(f.path)}
             >
@@ -54,6 +56,9 @@ export function FilesChanged({
                 {f.path}
               </div>
               <div className="flex shrink-0 items-center gap-2 font-mono text-[11px] tabular-nums">
+                {traceByFile?.[f.path] ? (
+                  <span className="pill-trace-ai">AI {traceByFile[f.path].aiPercent}%</span>
+                ) : null}
                 <span className="text-emerald-600">{formatDelta(f.additions)}</span>
                 <span className="text-red-500">-{f.deletions}</span>
               </div>

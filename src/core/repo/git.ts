@@ -29,12 +29,11 @@ export async function getHeadSha(path: string): Promise<string> {
 }
 
 export async function listCommits(path: string, limit = 50): Promise<CommitSummary[]> {
-  const format = '%H%x1f%an%x1f%ad%x1f%s%x1e';
+  const format = '%H%x1f%an%x1f%aI%x1f%s%x1e'; // Use %aI for strict ISO 8601 format
   const stdout = await git(path, [
     'log',
     '-n',
     String(limit),
-    '--date=iso',
     `--pretty=format:${format}`,
     '--no-color'
   ]);
