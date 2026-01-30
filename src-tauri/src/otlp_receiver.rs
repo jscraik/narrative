@@ -21,6 +21,7 @@ use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
     sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
 use tauri::{AppHandle, Emitter};
 use tokio::sync::oneshot;
@@ -31,6 +32,15 @@ const OTLP_PORT: u16 = 4318;
 const MAX_BODY_BYTES: usize = 10 * 1024 * 1024;
 const TRACE_EXTENSION: &str = ".agent-trace.json";
 const TRACE_DIR: &str = "trace";
+
+// Security: API key authentication for OTLP receiver
+const API_KEY_HEADER: &str = "x-narrative-api-key";
+// Default API key - users can override via environment variable
+const DEFAULT_API_KEY: &str = "narrative-otel-dev-key-change-in-production";
+
+// Security: Rate limiting configuration
+const RATE_LIMIT_MAX_REQUESTS: u32 = 30;  // Max requests per window
+const RATE_LIMIT_WINDOW_SECONDS: u64 = 1;  // 1 second sliding window
 
 const COMMIT_KEYS: &[&str] = &[
     "commit_sha",
@@ -61,6 +71,7 @@ const TOOL_VERSION_KEYS: &[&str] = &["app.version", "codex.version"];
 pub struct OtelReceiverState {
     repo_root: Arc<Mutex<Option<String>>>,
     runtime: Arc<Mutex<Option<OtelReceiverRuntime>>>,
+    rate_limiter: Arc<Mutex<RateLimiter>>,
 }
 
 #[derive(Clone)]
@@ -71,6 +82,37 @@ struct ReceiverContext {
 
 struct OtelReceiverRuntime {
     shutdown: Option<oneshot::Sender<()>>,
+}
+
+// Simple in-memory rate limiter using a sliding window
+#[derive(Default)]
+struct RateLimiter {
+    requests: Vec<Instant>,
+}
+
+impl RateLimiter {
+    // Check if a request should be allowed based on rate limit
+    // Returns true if allowed, false if rate limit exceeded
+    fn check(&mut self) -> bool {
+        let now = Instant::now();
+        let window_start = now - Duration::from_secs(RATE_LIMIT_WINDOW_SECONDS);
+
+        // Remove timestamps outside the current window
+        self.requests.retain(|&t| t > window_start);
+
+        // Check if under the limit
+        if self.requests.len() < RATE_LIMIT_MAX_REQUESTS as usize {
+            self.requests.push(now);
+            true
+        } else {
+            false
+        }
+    }
+
+    // Get current count for monitoring
+    fn count(&self) -> usize {
+        self.requests.len()
+    }
 }
 
 #[derive(Clone)]
@@ -331,6 +373,32 @@ fn stop_otlp_receiver(
     Ok(())
 }
 
+// Get the expected API key from environment or use default
+fn get_expected_api_key() -> String {
+    std::env::var("NARRATIVE_OTEL_API_KEY")
+        .unwrap_or_else(|_| DEFAULT_API_KEY.to_string())
+}
+
+// Validate API key from headers
+fn validate_api_key(headers: &HeaderMap) -> Result<(), String> {
+    let api_key = headers
+        .get(API_KEY_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| {
+            format!(
+                "Missing API key header: {API_KEY_HEADER}. \
+                Set NARRATIVE_OTEL_API_KEY env var or use default key."
+            )
+        })?;
+
+    let expected = get_expected_api_key();
+    if api_key == expected {
+        Ok(())
+    } else {
+        Err("Invalid API key".to_string())
+    }
+}
+
 async fn handle_logs(
     State(context): State<ReceiverContext>,
     headers: HeaderMap,
@@ -353,6 +421,57 @@ async fn handle_request(
     body: Bytes,
     signal: OtelSignal,
 ) -> impl IntoResponse {
+    // Security: Validate API key first
+    if let Err(err) = validate_api_key(&headers) {
+        eprintln!("[OTLP Security] API key validation failed: {}", err);
+        return response(
+            StatusCode::UNAUTHORIZED,
+            IngestResponse {
+                accepted: 0,
+                dropped: 0,
+                errors: vec!["Unauthorized: Invalid or missing API key".to_string()],
+            },
+        );
+    }
+
+    // Security: Check rate limit
+    {
+        let rate_limiter = context.state.rate_limiter.lock().map_err(|e| e.to_string());
+        let mut rate_limiter = match rate_limiter {
+            Ok(rl) => rl,
+            Err(err) => {
+                eprintln!("[OTLP Security] Failed to acquire rate limiter lock: {}", err);
+                return response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    IngestResponse {
+                        accepted: 0,
+                        dropped: 0,
+                        errors: vec!["Internal server error".to_string()],
+                    },
+                );
+            }
+        };
+
+        if !rate_limiter.check() {
+            eprintln!(
+                "[OTLP Security] Rate limit exceeded: {} requests in {} second window",
+                rate_limiter.count(),
+                RATE_LIMIT_WINDOW_SECONDS
+            );
+            return response(
+                StatusCode::TOO_MANY_REQUESTS,
+                IngestResponse {
+                    accepted: 0,
+                    dropped: 0,
+                    errors: vec![format!(
+                        "Rate limit exceeded: max {} requests per {} second",
+                        RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECONDS
+                    )],
+                },
+            );
+        }
+    }
+
     if body.len() > MAX_BODY_BYTES {
         return response(
             StatusCode::PAYLOAD_TOO_LARGE,
