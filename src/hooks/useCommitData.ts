@@ -1,9 +1,26 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCommitDiffForFile } from '../core/repo/git';
 import { getOrLoadCommitFiles } from '../core/repo/indexer';
 import { getTraceRangesForCommitFile } from '../core/repo/agentTrace';
 import type { BranchViewModel, FileChange, TraceRange } from '../core/types';
 import type { RepoState } from './useRepoLoader';
+
+// Lazy-load demo model to avoid bundling issues
+let demoModelCache: BranchViewModel | null = null;
+let demoModelPromise: Promise<BranchViewModel> | null = null;
+
+async function loadDemoModel(): Promise<BranchViewModel> {
+  if (demoModelCache) return demoModelCache;
+  if (demoModelPromise) return demoModelPromise;
+
+  demoModelPromise = (async () => {
+    const mod = await import('../core/demo/nearbyGridDemo');
+    demoModelCache = mod.NearbyGridDemo;
+    return mod.NearbyGridDemo;
+  })();
+
+  return demoModelPromise;
+}
 
 export interface UseCommitDataProps {
   mode: 'demo' | 'repo' | 'speculate';
@@ -30,14 +47,22 @@ export function useCommitData({
   diffCache,
   model: _model
 }: UseCommitDataProps): UseCommitDataReturn {
+  const [demoModel, setDemoModel] = useState<BranchViewModel | null>(null);
+
+  // Load demo model asynchronously when entering demo mode
+  useEffect(() => {
+    if (mode === 'demo' && !demoModel) {
+      loadDemoModel().then(setDemoModel);
+    }
+  }, [mode, demoModel]);
+
   const computedModel = useMemo(() => {
     if (mode === 'demo') {
-      // Import demo model dynamically when in demo mode
-      return require('../core/demo/nearbyGridDemo').NearbyGridDemo;
+      return demoModel;
     }
     if (mode === 'repo' && repoState.status === 'ready') return repoState.model;
     return null;
-  }, [mode, repoState]);
+  }, [mode, repoState, demoModel]);
 
   const repoPath = useMemo(() => {
     if (repoState.status === 'ready') return repoState.repo.root;

@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { FileText, FolderOpen, GitBranch, LayoutGrid, Network, RefreshCw } from 'lucide-react';
+import { FileText, FolderOpen, GitBranch, LayoutGrid, Network } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 export type Mode = 'demo' | 'repo' | 'speculate';
