@@ -1,38 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
-import mermaid from 'mermaid';
+import { useEffect, useState } from 'react';
+import { renderMermaid } from 'beautiful-mermaid';
 
 interface MermaidDiagramProps {
   chart: string;
 }
 
 /**
- * Renders a Mermaid diagram from markdown code.
- * Initializes Mermaid once and renders the diagram.
+ * Renders a Mermaid diagram using beautiful-mermaid.
+ * Creates beautiful, themeable SVG diagrams.
  */
 export function MermaidDiagram({ chart }: MermaidDiagramProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'default',
-      securityLevel: 'loose',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    });
-  }, []);
-
-  useEffect(() => {
     const renderDiagram = async () => {
-      if (!chart || !containerRef.current) return;
+      if (!chart) return;
 
       try {
-        // Generate a unique ID for this diagram
-        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Render the diagram
-        const { svg: renderedSvg } = await mermaid.render(id, chart);
+        const renderedSvg = await renderMermaid(chart);
         setSvg(renderedSvg);
         setError('');
       } catch (err) {
@@ -55,9 +41,16 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     );
   }
 
+  if (!svg) {
+    return (
+      <div className="my-4 rounded-lg border border-stone-200 bg-stone-50 p-8 flex items-center justify-center">
+        <div className="text-sm text-stone-500">Rendering diagram...</div>
+      </div>
+    );
+  }
+
   return (
     <div 
-      ref={containerRef}
       className="mermaid-diagram my-4 rounded-lg border border-stone-200 bg-white p-4 overflow-auto"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
