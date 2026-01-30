@@ -1422,5 +1422,224 @@ const stats = await getCommitContributionStats(repoId, commitSha);
 ---
 
 *Last updated: January 30, 2026*
-*Version: 0.1.0*
-*Status: ✅ Calibration study passed | ✅ Attribution tracking shipped | ✅ Code quality refactoring complete*
+*Version: 0.2.0*
+*Status: ✅ Calibration study passed | ✅ Attribution tracking shipped | ✅ Code quality refactoring complete | ✅ Auto-updates enabled | ✅ GitHub Releases active*
+
+---
+
+## What's New: GitHub Releases & Auto-Updates (January 30, 2026)
+
+We just shipped a complete release management system. Here's how it works:
+
+### The Problem: Manual DMG Distribution
+
+Before this update, releases were manual:
+1. Build locally on a Mac
+2. Create DMG file
+3. Upload to somewhere users can download
+4. Users manually check for updates
+
+**Problems:**
+- No automatic update notifications
+- Platform-specific builds (only Mac DMGs)
+- No signing/verification
+- Manual process = easy to forget
+
+### The Solution: GitHub Releases + Auto-Updater
+
+Now we have a fully automated release pipeline:
+
+```mermaid
+flowchart TB
+    subgraph Dev["Developer"]
+        Tag["git tag v0.2.0"]
+    end
+    
+    subgraph GitHub["GitHub Actions"]
+        Build["Build Matrix"]
+        MacArm["macOS Apple Silicon"]
+        MacIntel["macOS Intel"]
+        Windows["Windows x64"]
+        Linux["Linux x64"]
+        Sign["Sign Artifacts"]
+        Release["Create Release"]
+        LatestJSON["Generate latest.json"]
+    end
+    
+    subgraph User["User's Machine"]
+        App["Narrative App"]
+        Check["Daily Update Check"]
+        Notify["Update Notification"]
+        Download["Download & Install"]
+    end
+    
+    Tag --> Build
+    Build --> MacArm & MacIntel & Windows & Linux
+    MacArm & MacIntel & Windows & Linux --> Sign
+    Sign --> Release
+    Release --> LatestJSON
+    LatestJSON --> |"https://github.com/jscraik/narrative/releases/latest/download/latest.json"| App
+    App --> Check
+    Check --> Notify
+    Notify --> Download
+    
+    style GitHub fill:#e3f2fd
+    style User fill:#e8f5e9
+```
+
+**How it works:**
+
+1. **Create a release:** Run `./scripts/release.sh 0.2.0`
+2. **GitHub Action triggers:** Builds for all 4 platforms automatically
+3. **Artifacts signed:** Uses Tauri signing keys for verification
+4. **Release published:** DMG, EXE, AppImage all available
+5. **Auto-updater checks:** App checks GitHub daily for updates
+6. **User notified:** One-click install when update available
+
+### Release Process for Agents
+
+```bash
+# Make changes, commit them
+git add -A
+git commit -m "feat: add amazing new feature"
+
+# Run the release script
+./scripts/release.sh 0.2.1
+
+# That's it! GitHub Actions handles the rest.
+```
+
+**What the script does:**
+1. Updates version in `package.json` and `tauri.conf.json`
+2. Creates git commit for version bump
+3. Creates and pushes git tag `v0.2.1`
+4. Triggers GitHub Action workflow
+
+**What GitHub Actions does:**
+1. Builds for macOS (Apple Silicon + Intel)
+2. Builds for Windows (x64 installer)
+3. Builds for Linux (AppImage, .deb)
+4. Signs all artifacts with Tauri signing key
+5. Creates GitHub Release with all artifacts
+6. Generates `latest.json` for auto-updater
+
+### Auto-Update Configuration
+
+The app now checks for updates automatically:
+
+```typescript
+// src/App.tsx
+const { status: updateStatus, checkForUpdates, downloadAndInstall, dismiss } = useUpdater({
+  checkOnMount: true,              // Check on app startup
+  pollIntervalMinutes: 60 * 24     // Check once per day
+});
+```
+
+**User experience:**
+1. App launches → checks for updates in background
+2. If update available → shows notification banner
+3. User clicks "Update" → downloads new version
+4. App restarts → running latest version
+
+### Download URLs
+
+**Latest release:** https://github.com/jscraik/narrative/releases/latest
+
+**Direct download links:**
+- macOS Apple Silicon: `Narrative MVP_aarch64.dmg`
+- macOS Intel: `Narrative MVP_x64.dmg`
+- Windows: `Narrative MVP_x64-setup.exe`
+- Linux: `Narrative MVP_amd64.AppImage`
+
+### Required Secrets (Already Configured)
+
+The GitHub Action needs these secrets (already in repo settings):
+- `TAURI_SIGNING_PRIVATE_KEY` - For signing updates
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` - Key password
+
+These are configured in: `https://github.com/jscraik/narrative/settings/secrets/actions`
+
+---
+
+## What's New: Docs View with Auto-Repo-Load (January 30, 2026)
+
+We fixed the Docs tab to automatically load documentation when you switch to it.
+
+### The Problem
+
+Previously, if you switched from Demo mode to Docs mode, you'd see "Open a repository to view documentation" - even if you had a repo loaded in Repo mode. This was confusing.
+
+### The Solution
+
+Added a `DocsView` wrapper that auto-loads the current directory as a repo when Docs is opened without a loaded repo:
+
+```typescript
+// src/App.tsx - DocsView component
+function DocsView(props: {
+  repoState: RepoState;
+  setRepoState: React.Dispatch<React.SetStateAction<RepoState>>;
+  // ...
+}) {
+  useEffect(() => {
+    if (repoState.status !== 'idle' && repoState.status !== 'error') {
+      return; // Already loaded
+    }
+    
+    // Auto-load current directory
+    const loadCurrentDir = async () => {
+      const defaultPath = '/Users/jamiecraik/dev/narrative';
+      const { model, repo } = await indexRepo(defaultPath, 60);
+      setRepoState({ status: 'ready', path: defaultPath, model, repo });
+    };
+    
+    loadCurrentDir();
+  }, [repoState.status]);
+  
+  // ...
+}
+```
+
+**What it does:**
+1. User clicks "Docs" tab
+2. If no repo loaded → automatically loads the narrative project itself
+3. Displays documentation files from `.narrative/` folder
+4. Shows markdown files with Mermaid diagram support
+
+### Docs View Features
+
+- **Auto-loads repo:** No manual "Open repo" needed
+- **Lists markdown files:** Scans `.narrative/` for `.md` files
+- **Mermaid diagrams:** Renders Mermaid charts inline
+- **Proper scrolling:** Fixed container height issues
+
+### Files Changed
+
+**New files:**
+- `scripts/release.sh` - Release helper script
+
+**Modified:**
+- `src/App.tsx` - Added DocsView component, enabled auto-updates
+- `src/ui/components/DocsOverviewPanel.tsx` - Removed debug logging
+- `AGENTS.md` - Added release protocol documentation
+- `src-tauri/src/commands.rs` - Cleaned up debug logging
+
+---
+
+## Summary
+
+**Release Management:**
+- ✅ GitHub Releases with automated builds
+- ✅ Auto-updater checks daily
+- ✅ Signed artifacts for security
+- ✅ Multi-platform support (Mac/Win/Linux)
+
+**Docs View:**
+- ✅ Auto-loads repo when switching to Docs tab
+- ✅ Lists and displays markdown documentation
+- ✅ Mermaid diagram rendering
+- ✅ Fixed scrolling issues
+
+**Next Steps:**
+1. Future releases just run `./scripts/release.sh X.Y.Z`
+2. Users get automatic update notifications
+3. No more manual DMG files!
