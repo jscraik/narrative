@@ -32,7 +32,12 @@ fi
 
 # Update version in package.json
 echo "1. Updating package.json..."
-npm version "$VERSION" --no-git-tag-version
+CURRENT_VERSION=$(cat package.json | grep '"version"' | head -1 | sed 's/.*: "\(.*\)".*/\1/')
+if [ "$CURRENT_VERSION" != "$VERSION" ]; then
+    npm version "$VERSION" --no-git-tag-version
+else
+    echo "   Version already at $VERSION, skipping npm version"
+fi
 
 # Update version in tauri.conf.json
 echo "2. Updating tauri.conf.json..."
