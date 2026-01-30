@@ -426,6 +426,200 @@ When two commits have similar scores (within 5%), we prefer the one with the clo
 
 ---
 
+## The Core Concept: Conversations ↔ Commits ↔ Code
+
+This is the heart of Narrative. The original design vision was to **tie conversations to commits to code**—creating a three-way connection that tells the complete story of how code evolved.
+
+### The Triad Explained
+
+```mermaid
+flowchart TB
+    subgraph Concept["The Narrative Triad"]
+        direction TB
+
+        subgraph Why["💬 Conversations (The Why)"]
+            Reasoning["AI reasoning & intent"]
+            Planning["Planning & debate"]
+            Context["Decision context"]
+        end
+
+        subgraph Anchor["⚓ Commits (The Anchor)"]
+            Timestamp["Immutable time"]
+            Spine["Temporal spine"]
+            Boundary["Change boundary"]
+        end
+
+        subgraph What["📄 Code (The What)"]
+            Artifact["Actual changes"]
+            Attribution["AI vs human"]
+            Evidence["Line-level proof"]
+        end
+    end
+
+    Why -->|"produced"| Anchor
+    Anchor -->|"contains"| What
+    What -->|"explained by"| Why
+
+    Why -.->|"annotates"| Anchor
+    Anchor -.->|"grounds"| What
+
+    style Concept fill:#fafafa
+    style Why fill:#fff3e0
+    style Anchor fill:#f3e5f5
+    style What fill:#e8f5e9
+```
+
+**Think of it like this:**
+
+| Element | Role | Question It Answers |
+|---------|------|---------------------|
+| **Conversations** | The story | "Why did we write this?" |
+| **Commits** | The anchor | "When did this happen?" |
+| **Code** | The artifact | "What actually changed?" |
+
+### How It's Implemented
+
+The triad isn't just an idea—it's fully built. Here's how each piece maps to real code:
+
+```mermaid
+flowchart LR
+    subgraph Input["Real-world Sources"]
+        Claude["Claude Code<br/>.jsonl sessions"]
+        Codex["Codex CLI<br/>OTEL logs"]
+        Manual["Manual imports<br/>.json files"]
+    end
+
+    subgraph Storage["Where It Lives"]
+        Sessions["sessions table<br/>Full conversations"]
+        Commits["commits table<br/>Git metadata"]
+        Links["session_links table<br/>The connections"]
+        Traces["trace_* tables<br/>Line attribution"]
+    end
+
+    subgraph Display["What You See"]
+        Timeline["Timeline badges<br/>Quick overview"]
+        Files["File pills<br/>Per-file AI%"]
+        Diff["Line highlights<br/>AI vs human"]
+        Panel["Conversation panel<br/>Full context"]
+    end
+
+    Input --> Sessions
+    Claude --> Traces
+    Sessions --> Links
+    Commits --> Links
+    Commits --> Timeline
+    Traces --> Stats["commit_contribution_stats"]
+
+    Links --> Timeline
+    Stats --> Timeline
+    Stats --> Files
+    Traces --> Diff
+    Sessions --> Panel
+
+    Timeline --> Files --> Diff --> Panel
+
+    style Input fill:#e3f2fd
+    style Storage fill:#fff3e0
+    style Display fill:#e8f5e9
+```
+
+### The "Tie" That Binds Them
+
+What connects conversations to commits? **Confidence scoring.**
+
+```mermaid
+flowchart TD
+    Session["Session<br/>14:00-14:30<br/>files: auth.ts"]
+    Commits["Candidate Commits<br/>A: 14:15, auth.ts ✓<br/>B: 14:20, readme.md ✗"]
+
+    Score["Confidence Algorithm<br/>0.6 × temporal + 0.4 × files"]
+
+    Decision{"≥ 0.7?"}
+
+    AutoLink["Auto-link! ✅<br/>Green badge appears"]
+    Unlink["No auto-link<br/>Manual review needed"]
+
+    Session --> Score
+    Commits --> Score
+    Score --> Decision
+    Decision -->|Yes| AutoLink
+    Decision -->|No| Unlink
+
+    style AutoLink fill:#c8e6c9
+    style Unlink fill:#ffcdd2
+```
+
+**The algorithm:**
+1. **Temporal score** (60%): Did the commit happen during the session?
+2. **File overlap** (40%): Did they touch the same files?
+3. **Combined**: If confidence ≥ 0.7 → auto-link
+
+This means **most correct links happen automatically**, but you can always unlink or manually fix mistakes.
+
+### Progressive Disclosure: How You Experience It
+
+The UI reveals the story layer by layer:
+
+```mermaid
+flowchart TD
+    L1["Level 1: Timeline<br/>See badges at a glance"] --> L2["Level 2: Commit Detail<br/>See AI% per file"]
+    L2 --> L3["Level 3: Code Detail<br/>See line highlights"]
+    L3 --> L4["Level 4: Full Context<br/>Read the conversation"]
+
+    style L1 fill:#e3f2fd
+    style L2 fill:#fff3e0
+    style L3 fill:#e8f5e9
+    style L4 fill:#f3e5f5
+```
+
+**Level 1 - Timeline Overview**: Green badges show AI-heavy commits at a glance.
+
+**Level 2 - Files List**: Click a commit → see which files were AI-assisted (85% AI on `auth.ts`).
+
+**Level 3 - Diff View**: Click a file → see exactly which lines AI wrote (highlighted in color).
+
+**Level 4 - Conversation**: Click the session panel → read the full reasoning behind the code.
+
+### Why This Matters
+
+**Before Narrative:**
+```
+$ git log --oneline
+a1b2c3 Fix auth bug
+d4e5f6 Add user login
+```
+You see **what** changed, but not **why** or **how**.
+
+**After Narrative:**
+```
+┌─ Fix auth bug ─────────────────────────────┐
+│ 🤖 85% AI · Claude · 42 messages           │
+│ "Let's add JWT authentication..."         │
+│ Files: auth.ts (92% AI), middleware.ts    │
+└────────────────────────────────────────────┘
+```
+Now you see:
+- **Why**: The conversation about JWT auth
+- **How**: AI wrote most of it (92% of auth.ts)
+- **What**: The actual diff with line highlights
+
+### Dive Deeper
+
+Want the full technical deep-dive? Check out `.narrative/CONVERSATIONS-COMMITS-CODE-MAP.md` for:
+- 10 Mermaid diagrams of the data flows
+- Concrete worked examples with SQL queries
+- Edge cases and failure modes
+- Complete file reference
+
+`★ Insight ─────────────────────────────────────`
+The key insight: **Sessions are annotations on commits, not separate entities.** The commit is the source of truth—the immutable anchor in time. Sessions provide explanatory context. This design choice means:
+- Auto-linking is a *suggestion*, not a decision (you can override)
+- The commit graph is always accurate (sessions don't modify git)
+- You can have multiple sessions per commit (future v2)
+`─────────────────────────────────────────────────`
+
+---
+
 ## Key Technical Decisions (And Why We Made Them)
 
 ### Decision 1: Tauri vs Electron
