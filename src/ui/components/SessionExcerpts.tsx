@@ -179,8 +179,8 @@ export function SessionExcerpts({
       <div className="card p-5 overflow-x-hidden">
         <div className="flex items-center justify-between">
           <div>
-            <div className="section-header">SESSION EXCERPTS</div>
-            <div className="section-subheader mt-0.5">high signal moments</div>
+            <div className="section-header">SESSION SUMMARY</div>
+            <div className="section-subheader mt-0.5">Key moments from the session</div>
           </div>
         </div>
         <div className="mt-6 flex flex-col items-center text-center py-4">
@@ -221,8 +221,8 @@ export function SessionExcerpts({
       <div className="card p-5 overflow-x-hidden">
         <div className="flex items-center justify-between">
           <div>
-            <div className="section-header">SESSION EXCERPTS</div>
-            <div className="section-subheader mt-0.5">high signal moments</div>
+            <div className="section-header">SESSION SUMMARY</div>
+            <div className="section-subheader mt-0.5">Key moments from the session</div>
           </div>
           <div className="flex flex-col items-end gap-1">
             <ToolPill tool={excerpt.tool} durationMin={excerpt.durationMin} />

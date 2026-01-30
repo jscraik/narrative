@@ -60,8 +60,8 @@ export function AgentTraceSummary(props: {
     <div className="card p-5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="section-header">AGENT TRACE</div>
-          <div className="section-subheader mt-0.5">who changed what</div>
+          <div className="section-header">AI ATTRIBUTION</div>
+          <div className="section-subheader mt-0.5">AI vs human contributions</div>
         </div>
         <div className="flex items-center gap-2">
           {status ? (

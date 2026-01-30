@@ -30,7 +30,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBKEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2NzMwNzRFRDhDNDQ1MzIKUldReVJjVFlUZ2R6aG41ZTZ5YjhjL2VoODc4c1ZtMyt6ME1MRmFjdWdqbnBnWkQvQ3VXS2diM2IK",
       "endpoints": [
         "https://github.com/jscraik/narrative/releases/latest/download/latest.json"
       ]

@@ -5,7 +5,7 @@ describe('AgentTraceSummary', () => {
   it('renders empty state when no summary is provided', () => {
     render(<AgentTraceSummary hasFiles={false} />);
 
-    expect(screen.getByText('AGENT TRACE')).toBeInTheDocument();
+    expect(screen.getByText('AI ATTRIBUTION')).toBeInTheDocument();
     expect(screen.getByText(/No Agent Trace yet/)).toBeInTheDocument();
   });
 

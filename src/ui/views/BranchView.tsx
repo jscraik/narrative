@@ -2,16 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileSelectionProvider, useFileSelection } from '../../core/context/FileSelectionContext';
 import { testRuns } from '../../core/demo/nearbyGridDemo';
 import type { BranchViewModel, FileChange, TestRun, TraceRange } from '../../core/types';
-import { AgentTraceSummary } from '../components/AgentTraceSummary';
 import { BranchHeader } from '../components/BranchHeader';
-import { CodexOtelSettingsPanel } from '../components/CodexOtelSettingsPanel';
-import { DiffViewer } from '../components/DiffViewer';
 import { FilesChanged } from '../components/FilesChanged';
+import { ImportErrorBanner } from '../components/ImportErrorBanner';
 import { IntentList } from '../components/IntentList';
-import { SessionExcerpts } from '../components/SessionExcerpts';
-import { SourceLensView } from '../components/SourceLensView';
-import { TestResultsPanel } from '../components/TestResultsPanel';
-import { TraceTranscriptPanel } from '../components/TraceTranscriptPanel';
+import { RightPanelTabs } from '../components/RightPanelTabs';
 import { Timeline } from '../components/Timeline';
 
 function BranchViewInner(props: {
@@ -213,6 +208,16 @@ function BranchViewInner(props: {
     setSelectedNodeId(commitSha);
   };
 
+  const handleExportAgentTrace = () => {
+    if (!selectedNodeId) return;
+    onExportAgentTrace(selectedNodeId, files);
+  };
+
+  const handleRunOtlpSmokeTest = () => {
+    if (!selectedNodeId) return;
+    onRunOtlpSmokeTest(selectedNodeId, files);
+  };
+
   return (
     <div className="flex h-full flex-col bg-[#f5f5f4]">
       <div className="flex-1 overflow-hidden">
@@ -246,76 +251,46 @@ function BranchViewInner(props: {
               )}
             </div>
 
-            {actionError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-start gap-3">
-                <span className="text-red-500 mt-0.5">●</span>
-                <div className="flex-1">{actionError}</div>
-                {onDismissActionError ? (
-                  <button
-                    type="button"
-                    onClick={onDismissActionError}
-                    className="text-red-400 hover:text-red-600 transition-colors"
-                    aria-label="Dismiss error"
-                  >
-                    ✕
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
+            {actionError && (
+              <ImportErrorBanner
+                error={actionError}
+                onDismiss={onDismissActionError}
+              />
+            )}
           </div>
 
-          {/* Right column */}
-          <div className="flex flex-col gap-5 min-w-0 lg:col-span-5 lg:overflow-y-auto">
-            <SessionExcerpts
-              excerpts={model.sessionExcerpts}
+          {/* Right column - Tabbed interface */}
+          <div className="flex flex-col min-w-0 lg:col-span-5 lg:overflow-hidden">
+            <RightPanelTabs
+              // Session
+              sessionExcerpts={model.sessionExcerpts}
               selectedFile={selectedFile}
               onFileClick={handleFileClickFromSession}
-              onUnlink={onUnlinkSession}
+              onUnlinkSession={onUnlinkSession}
               onCommitClick={handleCommitClickFromSession}
               selectedCommitId={selectedNodeId}
-            />
-            <TraceTranscriptPanel
-              excerpt={model.sessionExcerpts?.[0]}
-              selectedFile={selectedFile}
-              onFileClick={handleFileClickFromSession}
-            />
-            <AgentTraceSummary
-              summary={selectedNodeId ? model.traceSummaries?.byCommit[selectedNodeId] : undefined}
+              // Attribution
+              traceSummary={selectedNodeId ? model.traceSummaries?.byCommit[selectedNodeId] : undefined}
+              traceStatus={model.traceStatus}
               hasFiles={files.length > 0}
-              status={model.traceStatus}
-              onExport={() => {
-                if (!selectedNodeId) return;
-                onExportAgentTrace(selectedNodeId, files);
-              }}
-              onSmokeTest={() => {
-                if (!selectedNodeId) return;
-                onRunOtlpSmokeTest(selectedNodeId, files);
-              }}
-            />
-            <CodexOtelSettingsPanel
+              onExportAgentTrace={handleExportAgentTrace}
+              onRunOtlpSmokeTest={handleRunOtlpSmokeTest}
+              // Settings
               traceConfig={model.traceConfig}
               onUpdateCodexOtelPath={onUpdateCodexOtelPath}
               onToggleCodexOtelReceiver={onToggleCodexOtelReceiver}
               onOpenCodexOtelDocs={onOpenCodexOtelDocs}
-              logUserPromptEnabled={codexPromptExport?.enabled ?? null}
-              logUserPromptConfigPath={codexPromptExport?.configPath ?? null}
+              codexPromptExport={codexPromptExport}
+              // Tests
+              testRun={testRun}
+              onTestFileClick={handleFileClickFromTest}
+              // Diff
+              selectedCommitSha={selectedCommitSha}
+              repoId={model.meta?.repoId}
+              diffText={diffText}
+              loadingDiff={loadingDiff || loadingTrace}
+              traceRanges={traceRanges}
             />
-            {model.source === 'git' && selectedCommitSha && selectedFile && model.meta?.repoId ? (
-              <SourceLensView
-                repoId={model.meta.repoId}
-                commitSha={selectedCommitSha}
-                filePath={selectedFile}
-              />
-            ) : null}
-            <TestResultsPanel testRun={testRun} onFileClick={handleFileClickFromTest} />
-            <div className="min-h-[200px] flex-1">
-              <DiffViewer
-                title={selectedFile ?? 'DIFF'}
-                diffText={diffText}
-                loading={loadingDiff || loadingTrace}
-                traceRanges={traceRanges}
-              />
-            </div>
           </div>
         </div>
       </div>

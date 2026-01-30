@@ -76,10 +76,12 @@ export function ImportErrorBanner({ error, onDismiss }: ImportErrorBannerProps) 
               
               {help.actions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {help.actions.map((action, idx) => (
+                  {help.actions.map((action) => {
+                    const actionKey = `${action.label}-${action.href ?? 'action'}`;
+                    return (
                     action.href ? (
                       <a
-                        key={idx}
+                        key={actionKey}
                         href={action.href}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -90,7 +92,7 @@ export function ImportErrorBanner({ error, onDismiss }: ImportErrorBannerProps) 
                       </a>
                     ) : (
                       <button
-                        key={idx}
+                        key={actionKey}
                         type="button"
                         onClick={action.action}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors"
@@ -99,7 +101,7 @@ export function ImportErrorBanner({ error, onDismiss }: ImportErrorBannerProps) 
                         {action.label}
                       </button>
                     )
-                  ))}
+                  )})}
                 </div>
               )}
             </>
