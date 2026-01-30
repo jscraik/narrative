@@ -46,6 +46,7 @@ export function TestResultsPanel({
   className?: string;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const panelId = "test-results-panel";
 
   if (!testRun) {
     return (
@@ -71,6 +72,8 @@ export function TestResultsPanel({
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between gap-3 p-5 hover:bg-stone-50 transition-colors"
+        aria-expanded={expanded}
+        aria-controls={panelId}
       >
         <div className="flex-1">
           <div className="flex items-center gap-3">
@@ -109,7 +112,7 @@ export function TestResultsPanel({
       </button>
 
       {expanded && (
-        <div className="border-t border-stone-100 px-5 pb-5">
+        <div id={panelId} className="border-t border-stone-100 px-5 pb-5">
           {hasFailures ? (
             <div className="mt-4">
               <div className="mb-3 flex items-center gap-2">

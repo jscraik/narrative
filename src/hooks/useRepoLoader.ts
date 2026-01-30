@@ -48,7 +48,7 @@ export function useRepoLoader(): UseRepoLoaderReturn {
     if (!selected || Array.isArray(selected)) return;
 
     setRepoState({ status: 'loading', path: selected });
-    setIndexingProgress({ phase: 'start', message: 'Preparing index…', current: 0, total: 1, percent: 0 });
+    setIndexingProgress({ phase: 'resolve', message: 'Preparing index…', current: 0, total: 1, percent: 0 });
     setActionError(null);
 
     try {

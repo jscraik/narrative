@@ -14,6 +14,14 @@ import { ingestCodexOtelLogFile, scanAgentTraceRecords } from './agentTrace';
 import { loadTraceConfig } from './traceConfig';
 import { importAttributionNotesBatch } from '../attribution-api';
 
+export type IndexingProgress = {
+  phase: string;
+  message: string;
+  current?: number;
+  total?: number;
+  percent?: number;
+};
+
 export type RepoIndex = {
   repoId: number;
   root: string;
@@ -21,18 +29,65 @@ export type RepoIndex = {
   headSha: string;
 };
 
-export async function indexRepo(selectedPath: string, limit = 50): Promise<{ model: BranchViewModel; repo: RepoIndex }> {
+export async function indexRepo(
+  selectedPath: string,
+  limit = 50,
+  onProgress?: (progress: IndexingProgress) => void
+): Promise<{ model: BranchViewModel; repo: RepoIndex }> {
+  const phaseOrder = [
+    'resolve',
+    'branch',
+    'repo',
+    'commits',
+    'summaries',
+    'stats',
+    'notes',
+    'intent',
+    'sessions',
+    'trace-config',
+    'trace',
+    'meta',
+    'done'
+  ];
+
+  const reportProgress = (phase: string, message: string, current?: number, total?: number) => {
+    if (!onProgress) return;
+    const phaseIndex = phaseOrder.indexOf(phase);
+    const segment = phaseIndex >= 0 ? 100 / (phaseOrder.length - 1) : undefined;
+    const ratio = typeof total === 'number' && total > 0 && typeof current === 'number'
+      ? Math.min(1, current / total)
+      : 0;
+    const percent = segment !== undefined
+      ? Math.min(100, Math.round(segment * phaseIndex + ratio * segment))
+      : undefined;
+    onProgress({ phase, message, current, total, percent });
+  };
+
+  const yieldToMain = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  reportProgress('resolve', 'Resolving repository…');
   const root = await resolveGitRoot(selectedPath);
+  reportProgress('branch', 'Reading branch metadata…');
   const branch = await getHeadBranch(root);
   const headSha = await getHeadSha(root);
 
+  reportProgress('repo', 'Preparing repo index…');
   const repoId = await upsertRepo(root);
 
+  reportProgress('commits', 'Listing commits…');
   const commits = await listCommits(root, limit);
-  await cacheCommitSummaries(repoId, commits);
+  reportProgress('summaries', 'Caching commit summaries…', 0, commits.length);
+  const cachePromise = cacheCommitSummaries(repoId, commits, (current, total) => {
+    reportProgress('summaries', 'Caching commit summaries…', current, total);
+  });
 
-  const agg = await getAggregateStatsForCommits(root, limit);
+  reportProgress('stats', 'Computing aggregate stats…');
+  const [_, agg] = await Promise.all([
+    cachePromise,
+    getAggregateStatsForCommits(root, limit)
+  ]);
 
+  reportProgress('notes', 'Importing attribution notes…');
   try {
     await importAttributionNotesBatch(repoId, commits.map((c) => c.sha));
   } catch (e) {
@@ -40,13 +95,16 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     console.error('[Indexer] Attribution notes import failed:', e);
   }
 
+  reportProgress('intent', 'Preparing intent summaries…');
   const intent: IntentItem[] = commits.slice(0, 6).map((c, idx) => ({
     id: `c-${idx}`,
     text: c.subject || '(no subject)',
     tag: c.sha.slice(0, 7)
   }));
 
+  reportProgress('sessions', 'Loading session excerpts…');
   const sessionExcerpts = await loadSessionExcerpts(root, repoId, 1);
+  reportProgress('trace-config', 'Loading trace configuration…');
   const traceConfig = await loadTraceConfig(root);
   
   // Trace ingestion is best-effort; don't fail repo loading if it errors
@@ -60,6 +118,7 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     totals: { conversations: 0, ranges: 0 }
   };
   
+  reportProgress('trace', 'Scanning trace data…');
   try {
     otelIngest = await ingestCodexOtelLogFile({
       repoRoot: root,
@@ -100,6 +159,7 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     responses: trace.totals.ranges
   };
 
+  reportProgress('meta', 'Writing metadata snapshots…', 0, commits.length);
   // Best-effort: write shareable meta snapshots into `.narrative/meta/**`
   try {
     await ensureRepoNarrativeLayout(root);
@@ -122,8 +182,16 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
       })
     );
 
-    for (const c of commits) {
+    for (let index = 0; index < commits.length; index += 1) {
+      const c = commits[index];
       await writeCommitSummaryMeta(root, c);
+      const current = index + 1;
+      if (current % 20 === 0 || current === commits.length) {
+        reportProgress('meta', 'Writing metadata snapshots…', current, commits.length);
+      }
+      if (current % 50 === 0) {
+        await yieldToMain();
+      }
     }
   } catch (e) {
     // Repo may be read-only, or user may not want any working-tree writes during MVP
@@ -145,6 +213,7 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     meta: { repoPath: root, branchName: branch, headSha }
   };
 
+  reportProgress('done', 'Index complete', commits.length, commits.length);
   return { model, repo: { repoId, root, branch, headSha } };
 }
 

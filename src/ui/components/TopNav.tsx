@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { FileText, FolderOpen, GitBranch, LayoutGrid, Network } from 'lucide-react';
+import { FileText, FolderOpen, GitBranch, LayoutGrid, Network, RefreshCw } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 export type Mode = 'demo' | 'repo' | 'speculate';
@@ -13,12 +13,29 @@ export function TopNav(props: {
   onImportKimiSession?: () => void;
   onImportAgentTrace?: () => void;
   importEnabled?: boolean;
+  onCheckUpdates?: () => void;
+  updateStatus?: string | null;
+  updateBusy?: boolean;
 }) {
-  const { mode, onModeChange, repoPath, onOpenRepo, onImportSession, onImportKimiSession, onImportAgentTrace, importEnabled } =
-    props;
+  const {
+    mode,
+    onModeChange,
+    repoPath,
+    onOpenRepo,
+    onImportSession,
+    onImportKimiSession,
+    onImportAgentTrace,
+    importEnabled,
+    onCheckUpdates,
+    updateStatus,
+    updateBusy
+  } = props;
 
   const Tab = (p: { id: Mode; label: string; icon: ReactNode }) => (
     <button
+      role="tab"
+      aria-selected={mode === p.id}
+      tabIndex={mode === p.id ? 0 : -1}
       className={clsx(
         'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
         mode === p.id
@@ -33,11 +50,35 @@ export function TopNav(props: {
     </button>
   );
 
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const order: Mode[] = ['demo', 'repo', 'speculate'];
+    const currentIndex = order.indexOf(mode);
+    if (currentIndex === -1) return;
+    if (event.key === 'Home') {
+      onModeChange(order[0]);
+      return;
+    }
+    if (event.key === 'End') {
+      onModeChange(order[order.length - 1]);
+      return;
+    }
+    const delta = event.key === 'ArrowRight' ? 1 : -1;
+    const nextIndex = (currentIndex + delta + order.length) % order.length;
+    onModeChange(order[nextIndex]);
+  };
+
   return (
     <div className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3">
       <div className="flex items-center gap-3">
         <div className="text-sm font-bold tracking-wide text-stone-800">Narrative</div>
-        <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-1">
+        <div
+          className="flex items-center gap-1 bg-stone-100 rounded-lg p-1"
+          role="tablist"
+          aria-label="View mode"
+          onKeyDown={handleTabKeyDown}
+        >
           <Tab id="demo" label="Demo" icon={<LayoutGrid className="h-4 w-4" />} />
           <Tab id="repo" label="Repo" icon={<GitBranch className="h-4 w-4" />} />
           <Tab id="speculate" label="Speculate" icon={<Network className="h-4 w-4" />} />
@@ -59,6 +100,28 @@ export function TopNav(props: {
             importEnabled={importEnabled}
           />
         )}
+
+        {onCheckUpdates ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onCheckUpdates}
+              disabled={updateBusy}
+              className={clsx(
+                'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border',
+                updateBusy
+                  ? 'bg-stone-50 text-stone-400 border-stone-200 cursor-not-allowed'
+                  : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+              )}
+            >
+              <RefreshCw className={clsx('h-4 w-4', updateBusy ? 'animate-spin' : '')} />
+              {updateBusy ? 'Checking…' : 'Check updates'}
+            </button>
+            {updateStatus ? (
+              <span className="text-xs text-stone-400">{updateStatus}</span>
+            ) : null}
+          </div>
+        ) : null}
 
         <button
           type="button"

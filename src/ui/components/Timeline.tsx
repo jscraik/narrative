@@ -55,6 +55,10 @@ export function Timeline(props: {
 }) {
   const { nodes, selectedId, onSelect, pulseCommitId } = props;
   const ref = useRef<HTMLDivElement | null>(null);
+  const reducedMotionQuery = useMemo(
+    () => (typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null),
+    []
+  );
   const [_canScrollLeft, setCanScrollLeft] = useState(false);
   const [_canScrollRight, setCanScrollRight] = useState(false);
 
@@ -115,33 +119,19 @@ export function Timeline(props: {
     }
   }, [onSelect, selectedId, sorted]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only navigate if we're not focused on an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        scrollToNode('prev');
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        scrollToNode('next');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [scrollToNode]);
-
   // Scroll selected node into view
   useEffect(() => {
     if (!selectedId || !ref.current) return;
     const selectedEl = ref.current.querySelector(`[data-node-id="${selectedId}"]`) as HTMLElement;
     if (selectedEl) {
-      selectedEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      const prefersReducedMotion = reducedMotionQuery?.matches ?? false;
+      selectedEl.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        inline: 'center',
+        block: 'nearest'
+      });
     }
-  }, [selectedId]);
+  }, [reducedMotionQuery, selectedId]);
 
   // Calculate navigation state
   const selectedIndex = useMemo(() => {
@@ -166,7 +156,22 @@ export function Timeline(props: {
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        <div ref={ref} className="relative flex-1 overflow-x-auto no-scrollbar scroll-smooth">
+        <div
+          ref={ref}
+          className="relative flex-1 overflow-x-auto no-scrollbar scroll-smooth"
+          tabIndex={0}
+          role="listbox"
+          aria-label="Commit timeline"
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              scrollToNode('prev');
+            } else if (event.key === 'ArrowRight') {
+              event.preventDefault();
+              scrollToNode('next');
+            }
+          }}
+        >
           {/* Connection line - visible path */}
           <div className="absolute left-0 right-0 top-[18px] h-[2px] bg-gradient-to-r from-stone-200 via-stone-300 to-stone-200" />
 
@@ -180,7 +185,12 @@ export function Timeline(props: {
               const hasSession = !!sessionBadge;
 
               return (
-                <div key={n.id} data-node-id={n.id} className="relative flex flex-col items-center" style={{ minWidth: '80px' }}>
+                <div
+                  key={n.id}
+                  data-node-id={n.id}
+                  className="relative flex flex-col items-center"
+                  style={{ minWidth: '80px' }}
+                >
                   {/* Label above */}
                   {showLabel && n.label ? (
                     <div className="mb-2 w-32 text-center text-[11px] font-medium text-stone-600 leading-tight truncate px-1">
@@ -197,6 +207,7 @@ export function Timeline(props: {
                     onClick={() => onSelect(n.id)}
                     title={n.label ?? n.id}
                     aria-label={n.label ?? n.id}
+                    aria-current={selected ? 'true' : undefined}
                   >
                     {/* Session badge overlay on dot */}
                     {sessionBadge && (

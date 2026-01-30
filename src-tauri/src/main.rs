@@ -1,3 +1,3 @@
 fn main() {
-    narrative_desktop_mvp::run();
+    let _ = narrative_desktop_mvp::run();
 }

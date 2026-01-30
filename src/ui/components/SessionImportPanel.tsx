@@ -129,6 +129,7 @@ export function SessionImportPanel({ repoId }: SessionImportPanelProps) {
             {sessions.map((session) => {
               const isSelected = selectedPaths.has(session.path);
               const fileName = session.path.split('/').pop() || session.path;
+              const checkboxId = `session-${session.path.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
               
               return (
                 <div
@@ -139,15 +140,16 @@ export function SessionImportPanel({ repoId }: SessionImportPanelProps) {
                 >
                   <div className="flex items-center gap-3">
                     <input
+                      id={checkboxId}
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelection(session.path)}
                       className="w-4 h-4 text-sky-600 border-stone-300 rounded focus:ring-sky-500"
                     />
-                    <div>
+                    <label htmlFor={checkboxId} className="cursor-pointer">
                       <p className="text-sm font-medium text-stone-800">{fileName}</p>
                       <p className="text-xs text-stone-500">{session.tool}</p>
-                    </div>
+                    </label>
                   </div>
                   <button
                     type="button"

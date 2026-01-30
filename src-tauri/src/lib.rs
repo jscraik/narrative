@@ -137,6 +137,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .build(),
         )
         .setup(|app| {
+            #[cfg(desktop)]
+            {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+            }
             // Create a separate sqlx pool for backend Rust operations
             // Use the same database as tauri_plugin_sql to avoid duplication
             let home = dirs::home_dir().ok_or_else(|| {

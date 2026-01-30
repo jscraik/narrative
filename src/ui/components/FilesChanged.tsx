@@ -50,6 +50,7 @@ export function FilesChanged({
                 if (el) fileRefs.current.set(f.path, el);
               }}
               type="button"
+              aria-pressed={selectedFile === f.path}
               className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-all ${
                 selectedFile === f.path 
                   ? 'bg-sky-50 border-l-2 border-l-sky-500 -ml-[2px] pl-[18px]' 

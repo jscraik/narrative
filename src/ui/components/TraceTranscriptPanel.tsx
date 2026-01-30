@@ -147,7 +147,7 @@ export function TraceTranscriptPanel({
                   <span className={`text-xs font-medium ${style.text}`}>{messageTitle(message)}</span>
                 </div>
               </div>
-              <div className="mt-2 text-sm text-stone-600 whitespace-pre-wrap">
+              <div className="mt-2 text-sm text-stone-600 whitespace-pre-wrap break-words">
                 {displayText}
               </div>
               {hasToolInput ? (
@@ -204,7 +204,9 @@ export function TraceTranscriptPanel({
                       key={file}
                       type="button"
                       onClick={() => onFileClick?.(file)}
-                      className={`pill-file ${selectedFile === file ? 'selected' : ''}`}
+                      aria-pressed={selectedFile === file}
+                      title={file}
+                      className={`pill-file max-w-full truncate ${selectedFile === file ? 'selected' : ''}`}
                     >
                       {file}
                     </button>

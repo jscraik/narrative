@@ -25,9 +25,16 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all"
+    "targets": "all",
+    "createUpdaterArtifacts": true
   },
   "plugins": {
+    "updater": {
+      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBKEY",
+      "endpoints": [
+        "https://github.com/jscraik/narrative/releases/latest/download/latest.json"
+      ]
+    },
     "sql": {
       "preload": [
         "sqlite:narrative.db"

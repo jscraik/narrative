@@ -8,12 +8,16 @@ function CollapsibleText({ text }: { text: string }) {
   const maxLength = 500;
 
   if (text.length <= maxLength) {
-    return <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">{text}</div>;
+    return (
+      <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-wrap break-words">
+        {text}
+      </div>
+    );
   }
 
   return (
     <div>
-      <div className={`text-sm text-stone-700 leading-relaxed whitespace-pre-wrap relative ${!isExpanded ? 'max-h-[200px] overflow-hidden' : ''
+      <div className={`text-sm text-stone-700 leading-relaxed whitespace-pre-wrap break-words relative ${!isExpanded ? 'max-h-[200px] overflow-hidden' : ''
         }`}>
         {text}
         {!isExpanded && (
@@ -121,7 +125,8 @@ function FilePill({
       onClick={onClick}
       aria-label={isSelected ? `View file ${file} (selected)` : `View file ${file}`}
       aria-pressed={isSelected}
-      className={`pill-file ${isSelected ? 'selected' : ''}`}
+      title={file}
+      className={`pill-file max-w-full truncate ${isSelected ? 'selected' : ''}`}
     >
       {file}
     </button>
@@ -171,7 +176,7 @@ export function SessionExcerpts({
 
   if (!excerpts || excerpts.length === 0) {
     return (
-      <div className="card p-5">
+      <div className="card p-5 overflow-x-hidden">
         <div className="flex items-center justify-between">
           <div>
             <div className="section-header">SESSION EXCERPTS</div>
@@ -213,7 +218,7 @@ export function SessionExcerpts({
 
   return (
     <>
-      <div className="card p-5">
+      <div className="card p-5 overflow-x-hidden">
         <div className="flex items-center justify-between">
           <div>
             <div className="section-header">SESSION EXCERPTS</div>

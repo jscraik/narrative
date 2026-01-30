@@ -1,6 +1,8 @@
 import Database from '@tauri-apps/plugin-sql';
 import type { CommitDetails, CommitSummary, FileChange } from '../types';
 
+const yieldToMain = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
 let _db: Database | null = null;
 
 export async function getDb(): Promise<Database> {
@@ -21,14 +23,26 @@ export async function upsertRepo(path: string): Promise<number> {
   return rows[0].id;
 }
 
-export async function cacheCommitSummaries(repoId: number, commits: CommitSummary[]): Promise<void> {
+export async function cacheCommitSummaries(
+  repoId: number,
+  commits: CommitSummary[],
+  onProgress?: (current: number, total: number) => void
+): Promise<void> {
   const db = await getDb();
   // Insert in a transaction-ish batch (sqlite will autocommit per statement; that's OK for MVP)
-  for (const c of commits) {
+  for (let index = 0; index < commits.length; index += 1) {
+    const c = commits[index];
     await db.execute(
       'INSERT OR IGNORE INTO commits (repo_id, sha, author, authored_at, subject, body) VALUES ($1, $2, $3, $4, $5, $6)',
       [repoId, c.sha, c.author, c.authoredAtISO, c.subject, '']
     );
+    const current = index + 1;
+    if (onProgress && (current % 25 === 0 || current === commits.length)) {
+      onProgress(current, commits.length);
+    }
+    if (current % 50 === 0) {
+      await yieldToMain();
+    }
   }
 }
 

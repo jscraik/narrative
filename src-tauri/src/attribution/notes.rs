@@ -32,6 +32,8 @@ pub struct NoteSourceMeta {
 pub struct ParsedAttributionNote {
     pub files: Vec<NoteFile>,
     pub sources: HashMap<String, NoteSourceMeta>,
+    pub rewrite_key: Option<String>,
+    pub rewrite_algorithm: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,6 +44,10 @@ struct NotePayload {
     #[serde(rename = "base_commit_sha")]
     #[allow(dead_code)]
     base_commit_sha: Option<String>,
+    #[serde(rename = "rewrite_key")]
+    rewrite_key: Option<String>,
+    #[serde(rename = "rewrite_algorithm")]
+    rewrite_algorithm: Option<String>,
     #[serde(alias = "prompts")]
     sources: Option<HashMap<String, NoteSourcePayload>>,
 }
@@ -67,6 +73,12 @@ struct AttributionNotePayload {
     schema_version: String,
     #[serde(rename = "base_commit_sha")]
     base_commit_sha: String,
+    #[serde(rename = "rewrite_key")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rewrite_key: Option<String>,
+    #[serde(rename = "rewrite_algorithm")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rewrite_algorithm: Option<String>,
     #[serde(rename = "prompts")]
     sources: HashMap<String, AttributionNoteSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -171,8 +183,13 @@ pub fn parse_attribution_note(message: &str) -> ParsedAttributionNote {
     let json_text = json_lines.join("\n").trim().to_string();
     let mut sources: HashMap<String, NoteSourceMeta> = HashMap::new();
 
+    let mut rewrite_key: Option<String> = None;
+    let mut rewrite_algorithm: Option<String> = None;
+
     if !json_text.is_empty() {
         if let Ok(payload) = serde_json::from_str::<NotePayload>(&json_text) {
+            rewrite_key = payload.rewrite_key.clone();
+            rewrite_algorithm = payload.rewrite_algorithm.clone();
             if let Some(map) = payload.sources {
                 for (session_id, source) in map {
                     let tool = source.agent_id.as_ref().and_then(|id| id.tool.clone());
@@ -196,13 +213,20 @@ pub fn parse_attribution_note(message: &str) -> ParsedAttributionNote {
         }
     }
 
-    ParsedAttributionNote { files, sources }
+    ParsedAttributionNote {
+        files,
+        sources,
+        rewrite_key,
+        rewrite_algorithm,
+    }
 }
 
 pub fn build_attribution_note(
     commit_sha: &str,
     files: &[NoteFile],
     sources: &HashMap<String, NoteSourceMeta>,
+    rewrite_key: Option<&str>,
+    rewrite_algorithm: Option<&str>,
 ) -> String {
     let mut lines: Vec<String> = Vec::new();
     let mut sorted_files = files.to_vec();
@@ -243,6 +267,8 @@ pub fn build_attribution_note(
     let payload = AttributionNotePayload {
         schema_version: ATTRIBUTION_SCHEMA_VERSION.to_string(),
         base_commit_sha: commit_sha.to_string(),
+        rewrite_key: rewrite_key.map(|value| value.to_string()),
+        rewrite_algorithm: rewrite_algorithm.map(|value| value.to_string()),
         sources: build_sources_payload(sources),
         messages_redacted: Some(true),
     };

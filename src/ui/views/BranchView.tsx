@@ -265,7 +265,7 @@ function BranchViewInner(props: {
           </div>
 
           {/* Right column */}
-          <div className="flex flex-col gap-5 lg:col-span-5 lg:overflow-y-auto">
+          <div className="flex flex-col gap-5 min-w-0 lg:col-span-5 lg:overflow-y-auto">
             <SessionExcerpts
               excerpts={model.sessionExcerpts}
               selectedFile={selectedFile}

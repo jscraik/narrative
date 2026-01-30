@@ -38,6 +38,7 @@ export function Dialog({
   onCancel,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
 
@@ -48,23 +49,52 @@ export function Dialog({
     const dialog = dialogRef.current;
     if (!dialog) return;
 
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+
     // Focus first focusable element
-    const focusable = dialog.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
     );
-    const first = focusable[0] as HTMLElement;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
     first?.focus();
 
-    // Handle Escape key (use { once: true } to prevent collision with other dialogs)
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!open) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
         onCancel();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+      if (!first || !last) return;
+
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
 
-    document.addEventListener('keydown', handleEscape, { once: true });
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onCancel]);
+
+  useEffect(() => {
+    if (open) return;
+    const previouslyFocused = previouslyFocusedRef.current;
+    if (!previouslyFocused) return;
+    window.setTimeout(() => {
+      previouslyFocused.focus();
+    }, 0);
+  }, [open]);
 
   // Handle exit animation
   useEffect(() => {
@@ -93,7 +123,8 @@ export function Dialog({
       <button
         type="button"
         className="absolute inset-0"
-        aria-label="Close dialog"
+        aria-hidden="true"
+        tabIndex={-1}
         onClick={onCancel}
       />
       <div
@@ -105,11 +136,14 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
+        aria-describedby="dialog-message"
       >
         <h2 id="dialog-title" className="text-lg font-semibold text-white">
           {title}
         </h2>
-        <p className="mt-3 text-sm text-zinc-300">{message}</p>
+        <p id="dialog-message" className="mt-3 text-sm text-zinc-300">
+          {message}
+        </p>
 
         <div className="mt-5 flex justify-end gap-3">
           <button
