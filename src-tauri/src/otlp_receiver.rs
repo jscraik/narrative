@@ -933,7 +933,19 @@ fn ingest_events(
         .app_handle
         .emit("otel-trace-ingested", &notification)
     {
-        eprintln!("Failed to emit otel-trace-ingested: {err}");
+        // Emit failure means the UI won't receive notification - surface via status
+        emit_status(
+            &context.app_handle,
+            ReceiverStatus {
+                state: "warning".to_string(),
+                message: Some(format!("Notification delivery failed: {err}")),
+                issues: Some(vec![
+                    "OTLP ingest completed but UI notification failed".to_string(),
+                    format!("Error: {err}")
+                ]),
+                last_seen_at_iso: Some(Utc::now().to_rfc3339()),
+            },
+        );
     }
 
     Ok(notification)
@@ -1154,8 +1166,17 @@ fn collect_file_hints(events: &[OtelEvent]) -> Vec<String> {
 }
 
 fn emit_status(app_handle: &AppHandle, status: ReceiverStatus) {
-    if let Err(err) = app_handle.emit("otel-receiver-status", status) {
-        eprintln!("Failed to emit otel-receiver-status: {err}");
+    if let Err(err) = app_handle.emit("otel-receiver-status", &status) {
+        // Status emit failure is critical - the UI won't show receiver state
+        // This typically happens when the app is shutting down or Tauri event system is broken
+        // We log to stderr as a last resort since we can't emit to UI
+        eprintln!("[OTLP Receiver] CRITICAL: Failed to emit status to UI: {err}");
+        eprintln!("[OTLP Receiver] Status was: state={}, message={:?}", status.state, status.message);
+
+        // Note: If this happens frequently, it indicates:
+        // 1. App shutting down (expected, ignore)
+        // 2. Tauri event system broken (requires app restart)
+        // 3. Frontend not listening (requires page refresh)
     }
 }
 
@@ -1168,8 +1189,18 @@ fn is_receiver_running(state: &OtelReceiverState) -> bool {
 }
 
 fn clear_receiver_runtime(state: &OtelReceiverState) {
-    if let Ok(mut guard) = state.runtime.lock() {
-        *guard = None;
+    match state.runtime.lock() {
+        Ok(mut guard) => {
+            *guard = None;
+        }
+        Err(poisoned) => {
+            // Lock poisoning means a thread panicked while holding the lock
+            // This is a serious error indicating a bug or unexpected panic
+            // We recover by clearing the poisoned state to allow the app to continue
+            let mut guard = poisoned.into_inner();
+            *guard = None;
+            eprintln!("[OTLP Receiver] WARNING: Mutex was poisoned (thread panic), cleared runtime state");
+        }
     }
 }
 
