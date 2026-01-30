@@ -267,6 +267,11 @@ function applyTraceUpdate(
   return {
     ...model,
     traceSummaries: { byCommit: trace.byCommit, byFileByCommit: trace.byFileByCommit },
+    stats: {
+      ...model.stats,
+      prompts: trace.totals.conversations,
+      responses: trace.totals.ranges
+    },
     timeline
   };
 }

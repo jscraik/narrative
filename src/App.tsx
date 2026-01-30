@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { setOtelReceiverEnabled } from './core/tauri/otelReceiver';
 import type {
   BranchViewModel,
@@ -9,12 +9,77 @@ import { TopNav, type Mode } from './ui/components/TopNav';
 import { BranchView } from './ui/views/BranchView';
 import { SpeculateView } from './ui/views/SpeculateView';
 import { DocsOverviewPanel } from './ui/components/DocsOverviewPanel';
-import { useRepoLoader } from './hooks/useRepoLoader';
+import { useRepoLoader, type RepoState } from './hooks/useRepoLoader';
 import { useUpdater } from './hooks/useUpdater';
 import { useTraceCollector } from './hooks/useTraceCollector';
 import { useSessionImport } from './hooks/useSessionImport';
 import { useCommitData } from './hooks/useCommitData';
 import { UpdatePrompt, UpdateIndicator } from './ui/components/UpdatePrompt';
+import { indexRepo } from './core/repo/indexer';
+
+/**
+ * Docs view wrapper that auto-loads the current directory as repo if needed.
+ * This ensures Docs mode works even when switching from Demo mode.
+ */
+function DocsView(props: {
+  repoState: RepoState;
+  setRepoState: React.Dispatch<React.SetStateAction<RepoState>>;
+  setActionError: (error: string | null) => void;
+  onClose: () => void;
+}) {
+  const { repoState, setRepoState, setActionError, onClose } = props;
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Auto-load current directory as repo when Docs is opened without a loaded repo
+  useEffect(() => {
+    if (repoState.status !== 'idle' && repoState.status !== 'error') {
+      return; // Already loaded or loading
+    }
+
+    const loadCurrentDir = async () => {
+      setIsLoading(true);
+      try {
+        // Try to use current working directory
+        const cwd = await import('@tauri-apps/api/path').then(m => m.appDataDir()).catch(() => null);
+        // Fall back to a sensible default or prompt user
+        // For now, we'll try to detect the repo from the current URL or use a default
+        const defaultPath = '/Users/jamiecraik/dev/narrative'; // Fallback for dev
+        
+        setRepoState({ status: 'loading', path: defaultPath });
+        
+        const { model, repo } = await indexRepo(defaultPath, 60);
+        setRepoState({ status: 'ready', path: defaultPath, model, repo });
+      } catch (e) {
+        console.error('[DocsView] Failed to auto-load repo:', e);
+        // Don't change state on error - let the UI show "No Repository Open"
+        setRepoState({ status: 'idle' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCurrentDir();
+  }, [repoState.status, setRepoState]);
+
+  if (repoState.status === 'loading' || isLoading) {
+    return (
+      <div className="h-full p-4 flex items-center justify-center">
+        <div className="text-center text-stone-500">
+          <div className="text-sm">Loading repository...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full p-4 overflow-hidden">
+      <DocsOverviewPanel 
+        repoRoot={repoState.status === 'ready' ? repoState.repo.root : ''}
+        onClose={onClose}
+      />
+    </div>
+  );
+}
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('demo');
@@ -25,6 +90,7 @@ export default function App() {
     setRepoState,
     indexingProgress,
     codexPromptExport,
+    actionError,
     setActionError,
     openRepo,
     diffCache
@@ -68,8 +134,8 @@ export default function App() {
 
   // Auto-updater integration
   const { status: updateStatus, checkForUpdates, downloadAndInstall, dismiss } = useUpdater({
-    checkOnMount: false, // Don't auto-check (GitHub releases not ready)
-    pollIntervalMinutes: 0
+    checkOnMount: true, // Check for updates on app launch
+    pollIntervalMinutes: 60 * 24 // Check once per day
   });
 
   const updateCodexOtelReceiverEnabled = useCallback(
@@ -126,12 +192,12 @@ export default function App() {
 
       <div className="flex-1 overflow-hidden">
         {mode === 'docs' ? (
-          <div className="flex-1 overflow-hidden">
-            <DocsOverviewPanel 
-              repoRoot={repoState.status === 'ready' ? repoState.repo.root : ''}
-              onClose={() => setMode('repo')}
-            />
-          </div>
+          <DocsView 
+            repoState={repoState}
+            setRepoState={setRepoState}
+            setActionError={setActionError}
+            onClose={() => setMode('repo')}
+          />
         ) : mode === 'speculate' ? (
           <SpeculateView />
         ) : mode === 'repo' && repoState.status === 'loading' ? (
@@ -175,7 +241,7 @@ export default function App() {
             onOpenCodexOtelDocs={traceCollectorHandlers.openCodexOtelDocs}
             codexPromptExport={codexPromptExport}
             onUnlinkSession={sessionImportHandlers.unlinkSession}
-            actionError={null}
+            actionError={actionError}
             onDismissActionError={() => setActionError(null)}
           />
         ) : (

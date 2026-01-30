@@ -11,6 +11,7 @@ use crate::DbState;
 
 /// Trace summary for a commit
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TraceCommitSummary {
     pub commit_sha: String,
     pub ai_lines: i64,
@@ -23,6 +24,7 @@ pub struct TraceCommitSummary {
 
 /// File-level trace summary
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TraceFileSummary {
     pub path: String,
     pub ai_lines: i64,
@@ -34,6 +36,7 @@ pub struct TraceFileSummary {
 
 /// Complete trace summary result
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TraceSummaryResult {
     pub commit: TraceCommitSummary,
     pub files: std::collections::HashMap<String, TraceFileSummary>,
@@ -42,6 +45,7 @@ pub struct TraceSummaryResult {
 
 /// Totals for conversations and ranges
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Totals {
     pub conversations: i64,
     pub ranges: i64,
@@ -52,9 +56,9 @@ pub struct Totals {
 pub async fn get_trace_summary_for_commit(
     db: State<'_, DbState>,
     repo_id: i64,
-    commit_sha: String,
+    commit_sha: &str,
 ) -> Result<Option<TraceSummaryResult>, String> {
-    let pool = &db.0;
+    let pool = &*db.0; // Get &SqlitePool from Arc<SqlitePool>
 
     // Query all trace ranges for this commit
     let rows = sqlx::query(
@@ -128,7 +132,7 @@ pub async fn get_trace_summary_for_commit(
     for file in file_map.values_mut() {
         let total = file.ai_lines + file.human_lines + file.mixed_lines + file.unknown_lines;
         file.ai_percent = if total > 0 {
-            (file.ai_lines * 100 / total)
+            file.ai_lines * 100 / total
         } else {
             0
         };
@@ -136,7 +140,7 @@ pub async fn get_trace_summary_for_commit(
 
     let total_lines = ai_lines + human_lines + mixed_lines + unknown_lines;
     let ai_percent = if total_lines > 0 {
-        (ai_lines * 100 / total_lines)
+        ai_lines * 100 / total_lines
     } else {
         0
     };
@@ -161,7 +165,7 @@ pub async fn get_trace_summary_for_commit(
 
     Ok(Some(TraceSummaryResult {
         commit: TraceCommitSummary {
-            commit_sha,
+            commit_sha: commit_sha.to_string(),
             ai_lines,
             human_lines,
             mixed_lines,
@@ -187,7 +191,7 @@ pub async fn get_trace_summaries_for_commits(
     let mut results = std::collections::HashMap::new();
 
     for sha in commit_shas {
-        if let Ok(Some(summary)) = get_trace_summary_for_commit(db.clone(), repo_id, sha).await {
+        if let Ok(Some(summary)) = get_trace_summary_for_commit(db.clone(), repo_id, &sha).await {
             results.insert(sha, summary);
         }
     }
@@ -197,6 +201,7 @@ pub async fn get_trace_summaries_for_commits(
 
 /// Trace range for a file
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TraceRange {
     pub start_line: i64,
     pub end_line: i64,
@@ -206,6 +211,7 @@ pub struct TraceRange {
 
 /// Contributor information
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TraceContributor {
     pub contributor_type: String,
     pub model_id: Option<String>,
@@ -219,7 +225,7 @@ pub async fn get_trace_ranges_for_commit_file(
     commit_sha: String,
     file_path: String,
 ) -> Result<Vec<TraceRange>, String> {
-    let pool = &db.0;
+    let pool = &*db.0; // Get &SqlitePool from Arc<SqlitePool>
 
     let rows = sqlx::query(
         "SELECT tr.start_line, tr.end_line, tr.content_hash, tr.contributor_type, tr.model_id

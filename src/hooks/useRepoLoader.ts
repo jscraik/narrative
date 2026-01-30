@@ -16,6 +16,7 @@ export interface UseRepoLoaderReturn {
   setRepoState: React.Dispatch<React.SetStateAction<RepoState>>;
   indexingProgress: IndexingProgress | null;
   codexPromptExport: { enabled: boolean | null; configPath: string | null };
+  actionError: string | null;
   setActionError: (error: string | null) => void;
   openRepo: () => Promise<void>;
   diffCache: React.MutableRefObject<{ clear(): void }>;
@@ -32,7 +33,7 @@ export function useRepoLoader(): UseRepoLoaderReturn {
     enabled: boolean | null;
     configPath: string | null;
   }>({ enabled: null, configPath: null });
-  const [_actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // LRU cache for commit diffs - bounded to prevent memory leaks
   const diffCache = useRef(new Map<string, string>());
@@ -89,6 +90,7 @@ export function useRepoLoader(): UseRepoLoaderReturn {
     setRepoState,
     indexingProgress,
     codexPromptExport,
+    actionError,
     setActionError,
     openRepo,
     diffCache: diffCache as unknown as React.MutableRefObject<{ clear(): void }>,

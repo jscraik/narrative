@@ -206,3 +206,49 @@ export type TestRun = {
 
 // EnhancedTimelineNode is now just TimelineNode (badges and testRunId added above)
 export type EnhancedTimelineNode = TimelineNode;
+
+// ============================================================================
+// Rules System Types
+// ============================================================================
+
+export type RuleSeverity = 'error' | 'warning';
+
+export type Rule = {
+  name: string;
+  description: string;
+  pattern: string;
+  is_regex?: boolean;
+  severity?: RuleSeverity;
+  include_files?: string[];
+  exclude_files?: string[];
+  suggestion?: string;
+};
+
+export type RuleViolation = {
+  rule_name: string;
+  severity: RuleSeverity;
+  file: string;
+  line: number;
+  matched: string;
+  suggestion: string;
+};
+
+export type ReviewSummary = {
+  total_files_scanned: number;
+  total_rules: number;
+  violations_found: number;
+  errors: number;
+  warnings: number;
+};
+
+export type ReviewResult = {
+  summary: ReviewSummary;
+  violations: RuleViolation[];
+  files_scanned: string[];
+  rules_applied: string[];
+};
+
+export type RuleValidationError = {
+  rule_name: string;
+  error: string;
+};

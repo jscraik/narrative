@@ -65,7 +65,21 @@ export function FilesChanged({
               </div>
               <div className="flex shrink-0 items-center gap-2 font-mono text-[11px] tabular-nums">
                 {traceByFile?.[f.path] ? (
-                  <span className="pill-trace-ai">AI {traceByFile[f.path].aiPercent}%</span>
+                  (() => {
+                    const summary = traceByFile[f.path];
+                    // Show "Unknown" pill if only unknown lines exist (no AI/human/mixed)
+                    const isUnknownOnly =
+                      summary.unknownLines > 0 &&
+                      summary.aiLines === 0 &&
+                      summary.humanLines === 0 &&
+                      summary.mixedLines === 0;
+
+                    return isUnknownOnly ? (
+                      <span className="pill-trace-unknown">Unknown</span>
+                    ) : (
+                      <span className="pill-trace-ai">AI {summary.aiPercent}%</span>
+                    );
+                  })()
                 ) : null}
                 <span className="text-emerald-600">{formatDelta(f.additions)}</span>
                 <span className="text-red-500">-{f.deletions}</span>

@@ -364,25 +364,79 @@ export async function scanAgentTraceRecords(
 
   // Use the Rust command to get trace summaries
   // This uses the sqlx pool which has the correct migrations and data
-  const summariesResult = await invoke('get_trace_summaries_for_commits', {
+  const summariesResultRaw = await invoke('get_trace_summaries_for_commits', {
     repoId,
     commitShas
   }) as Record<string, {
-    commit: TraceCommitSummary;
-    files: Record<string, TraceFileSummary>;
-    totals: { conversations: number; ranges: number };
+    commit: {
+      commitSha?: string;
+      commit_sha?: string;
+      aiLines?: number;
+      ai_lines?: number;
+      humanLines?: number;
+      human_lines?: number;
+      mixedLines?: number;
+      mixed_lines?: number;
+      unknownLines?: number;
+      unknown_lines?: number;
+      aiPercent?: number;
+      ai_percent?: number;
+      modelIds?: string[];
+      model_ids?: string[];
+    };
+    files: Record<string, {
+      path?: string;
+      aiLines?: number;
+      ai_lines?: number;
+      humanLines?: number;
+      human_lines?: number;
+      mixedLines?: number;
+      mixed_lines?: number;
+      unknownLines?: number;
+      unknown_lines?: number;
+      aiPercent?: number;
+      ai_percent?: number;
+    }>;
+    totals: {
+      conversations?: number;
+      ranges?: number;
+    };
   }>;
+
+  // Normalize from camelCase (Rust #[serde(rename_all = "camelCase")]) or snake_case (legacy)
+  const normalizeCommitSummary = (raw: typeof summariesResultRaw[string]['commit']): TraceCommitSummary => ({
+    commitSha: raw.commitSha ?? raw.commit_sha ?? '',
+    aiLines: raw.aiLines ?? raw.ai_lines ?? 0,
+    humanLines: raw.humanLines ?? raw.human_lines ?? 0,
+    mixedLines: raw.mixedLines ?? raw.mixed_lines ?? 0,
+    unknownLines: raw.unknownLines ?? raw.unknown_lines ?? 0,
+    aiPercent: raw.aiPercent ?? raw.ai_percent ?? 0,
+    modelIds: raw.modelIds ?? raw.model_ids ?? []
+  });
+
+  const normalizeFileSummary = (raw: typeof summariesResultRaw[string]['files'][string]): TraceFileSummary => ({
+    path: raw.path ?? '',
+    aiLines: raw.aiLines ?? raw.ai_lines ?? 0,
+    humanLines: raw.humanLines ?? raw.human_lines ?? 0,
+    mixedLines: raw.mixedLines ?? raw.mixed_lines ?? 0,
+    unknownLines: raw.unknownLines ?? raw.unknown_lines ?? 0,
+    aiPercent: raw.aiPercent ?? raw.ai_percent ?? 0
+  });
 
   const byCommit: Record<string, TraceCommitSummary> = {};
   const byFileByCommit: Record<string, Record<string, TraceFileSummary>> = {};
   let totalConversations = 0;
   let totalRanges = 0;
 
-  for (const [sha, summary] of Object.entries(summariesResult)) {
-    byCommit[sha] = summary.commit;
-    byFileByCommit[sha] = summary.files;
-    totalConversations += summary.totals.conversations;
-    totalRanges += summary.totals.ranges;
+  for (const [sha, summary] of Object.entries(summariesResultRaw)) {
+    byCommit[sha] = normalizeCommitSummary(summary.commit);
+    const normalizedFiles: Record<string, TraceFileSummary> = {};
+    for (const [filePath, fileSummary] of Object.entries(summary.files)) {
+      normalizedFiles[filePath] = normalizeFileSummary(fileSummary);
+    }
+    byFileByCommit[sha] = normalizedFiles;
+    totalConversations += summary.totals.conversations ?? 0;
+    totalRanges += summary.totals.ranges ?? 0;
   }
 
   return {
@@ -434,19 +488,27 @@ export async function getTraceRangesForCommitFile(
     commitSha,
     filePath
   }) as Array<{
-    start_line: number;
-    end_line: number;
-    content_hash: string | null;
-    contributor: { contributor_type: string; model_id: string | null };
+    start_line?: number;
+    startLine?: number;
+    end_line?: number;
+    endLine?: number;
+    content_hash?: string | null;
+    contentHash?: string | null;
+    contributor: {
+      contributor_type?: string;
+      contributorType?: string;
+      model_id?: string | null;
+      modelId?: string | null;
+    };
   }>;
 
   return ranges.map((row) => ({
-    startLine: row.start_line,
-    endLine: row.end_line,
-    contentHash: row.content_hash ?? undefined,
+    startLine: row.startLine ?? row.start_line ?? 1,
+    endLine: row.endLine ?? row.end_line ?? 1,
+    contentHash: row.contentHash ?? row.content_hash ?? undefined,
     contributor: {
-      type: normalizeContributorType(row.contributor.contributor_type),
-      modelId: row.contributor.model_id ?? undefined
+      type: normalizeContributorType(row.contributor.contributorType ?? row.contributor.contributor_type),
+      modelId: row.contributor.modelId ?? row.contributor.model_id ?? undefined
     }
   }));
 }

@@ -7,6 +7,7 @@ mod link_commands;
 mod linking;
 mod models;
 mod otlp_receiver;
+mod rules;
 mod session_hash;
 mod session_links;
 mod trace_commands;
@@ -131,6 +132,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             trace_commands::get_trace_summary_for_commit,
             trace_commands::get_trace_summaries_for_commits,
             trace_commands::get_trace_ranges_for_commit_file,
+            // Rules commands
+            rules::commands::review_repo,
+            rules::commands::get_rules,
+            rules::commands::validate_rules,
+            rules::commands::create_default_rules,
             // File watcher commands
             start_file_watcher,
         ])
