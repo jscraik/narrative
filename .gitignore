@@ -14,8 +14,14 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Narrative traces (generated)
+# Narrative traces and metadata (generated)
 .narrative/trace
+.narrative/meta/
+
+# Generated icons (build artifacts)
+src-tauri/icons/*.png
+src-tauri/icons/*.icns
+src-tauri/icons/*.ico
 
 # Env
 .env

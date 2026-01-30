@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Gradient background -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9"/>
+      <stop offset="50%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#ec4899"/>
+    </linearGradient>
+    
+    <!-- Glow effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Inner shadow for depth -->
+    <filter id="innerShadow">
+      <feOffset dx="0" dy="4"/>
+      <feGaussianBlur stdDeviation="8" result="offset-blur"/>
+      <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+      <feFlood flood-color="black" flood-opacity="0.2" result="color"/>
+      <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+      <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bgGradient)"/>
+  
+  <!-- Subtle inner highlight -->
+  <rect x="32" y="32" width="960" height="960" rx="192" ry="192" fill="none" stroke="white" stroke-opacity="0.1" stroke-width="2"/>
+  
+  <!-- Timeline / Narrative flow design -->
+  <g transform="translate(512, 512)" filter="url(#glow)">
+    <!-- Main flowing line (the narrative thread) -->
+    <path d="M -280 -80 
+             Q -140 -80, -140 0 
+             T 0 0 
+             T 140 0 
+             T 280 80" 
+          fill="none" 
+          stroke="white" 
+          stroke-width="48" 
+          stroke-linecap="round"
+          opacity="0.95"/>
+    
+    <!-- Nodes along the timeline -->
+    <!-- Start node -->
+    <circle cx="-280" cy="-80" r="64" fill="white"/>
+    <circle cx="-280" cy="-80" r="48" fill="#0ea5e9"/>
+    
+    <!-- Middle node (AI session) -->
+    <circle cx="0" cy="0" r="72" fill="white"/>
+    <circle cx="0" cy="0" r="56" fill="#8b5cf6"/>
+    
+    <!-- End node -->
+    <circle cx="280" cy="80" r="64" fill="white"/>
+    <circle cx="280" cy="80" r="48" fill="#ec4899"/>
+    
+    <!-- Small connector dots -->
+    <circle cx="-140" cy="-40" r="24" fill="white" opacity="0.8"/>
+    <circle cx="140" cy="40" r="24" fill="white" opacity="0.8"/>
+  </g>
+  
+  <!-- Subtle grid pattern overlay for tech feel -->
+  <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+    <path d="M 64 0 L 0 0 0 64" fill="none" stroke="white" stroke-width="1" stroke-opacity="0.03"/>
+  </pattern>
+  <rect width="1024" height="1024" fill="url(#grid)"/>
+</svg>
