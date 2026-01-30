@@ -35,8 +35,9 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
 
   try {
     await importAttributionNotesBatch(repoId, commits.map((c) => c.sha));
-  } catch {
-    // Notes import is best-effort
+  } catch (e) {
+    // Notes import is best-effort, but log the error for debugging
+    console.error('[Indexer] Attribution notes import failed:', e);
   }
 
   const intent: IntentItem[] = commits.slice(0, 6).map((c, idx) => ({
@@ -66,8 +67,9 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
       logPath: traceConfig.codexOtelLogPath
     });
     trace = await scanAgentTraceRecords(root, repoId, commits.map((c) => c.sha));
-  } catch {
+  } catch (e) {
     // Trace scanning failed, but we can still show the repo without trace data
+    console.error('[Indexer] Trace scanning failed:', e);
   }
 
   const timeline: TimelineNode[] = commits
@@ -123,8 +125,9 @@ export async function indexRepo(selectedPath: string, limit = 50): Promise<{ mod
     for (const c of commits) {
       await writeCommitSummaryMeta(root, c);
     }
-  } catch {
-    // ignore: repo may be read-only, or user may not want any working-tree writes during MVP
+  } catch (e) {
+    // Repo may be read-only, or user may not want any working-tree writes during MVP
+    console.warn('[Indexer] Metadata write failed (repo may be read-only):', e);
   }
 
   const model: BranchViewModel = {
@@ -155,8 +158,9 @@ export async function getOrLoadCommitFiles(repo: RepoIndex, sha: string) {
   // Best-effort: write committable metadata for this commit's file list.
   try {
     await writeCommitFilesMeta(repo.root, sha, details.fileChanges);
-  } catch {
-    // ignore
+  } catch (e) {
+    // Metadata write may fail (read-only fs, etc.), but file loading still works
+    console.warn('[Indexer] Commit files metadata write failed:', e);
   }
 
   return details.fileChanges;

@@ -53,7 +53,7 @@ impl std::ops::Deref for DbState {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let migrations = vec![
         Migration {
             version: 1,
@@ -83,6 +83,12 @@ pub fn run() {
             version: 5,
             description: "add_attribution_notes",
             sql: include_str!("../migrations/005_attribution_notes.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "add_commit_rewrite_keys",
+            sql: include_str!("../migrations/006_rewrite_keys.sql"),
             kind: MigrationKind::Up,
         },
     ];
@@ -133,9 +139,11 @@ pub fn run() {
         .setup(|app| {
             // Create a separate sqlx pool for backend Rust operations
             // Use the same database as tauri_plugin_sql to avoid duplication
-            let path = dirs::home_dir()
-                .expect("Failed to get home dir")
-                .join("Library/Application Support/com.jamie.narrative-mvp/narrative.db");
+            let home = dirs::home_dir().ok_or_else(|| {
+                eprintln!("Narrative: Failed to determine home directory. Please ensure HOME environment variable is set.");
+                "Could not determine home directory. Please ensure HOME environment variable is set."
+            })?;
+            let path = home.join("Library/Application Support/com.jamie.narrative-mvp/narrative.db");
 
             // Use blocking connect since setup is not async
             let pool = tauri::async_runtime::block_on(async {
@@ -146,8 +154,11 @@ pub fn run() {
 
                 SqlitePool::connect_with(options)
                     .await
-                    .expect("Failed to connect to database")
-            });
+                    .map_err(|e| {
+                        eprintln!("Narrative: Database connection failed: {}", e);
+                        format!("Failed to connect to database: {}. Please check file permissions and disk space.", e)
+                    })
+            })?;
 
             app.manage(DbState(Arc::new(pool)));
 
@@ -157,5 +168,9 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .map_err(|e| {
+            eprintln!("Narrative: Failed to run Tauri application: {}", e);
+            Box::new(e) as Box<dyn std::error::Error>
+        })?;
+    Ok(())
 }
