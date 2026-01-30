@@ -1,0 +1,9 @@
+config:
+  default: true
+  MD013: false # line length (handled case-by-case)
+  MD033: false # allow HTML for README signature
+
+globs:
+  - README.md
+  - docs/**/*.md
+  - brand/README.md

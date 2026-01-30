@@ -14,7 +14,8 @@
     "otel:smoke": "node scripts/otel-smoke.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "docs:lint": "vale --minAlertLevel=warning README.md docs/README.md docs/agents/*.md && npx -y markdownlint-cli2 README.md docs/**/*.md brand/README.md"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

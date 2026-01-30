@@ -26,7 +26,12 @@ export function BadgePill({ badge }: BadgePillProps) {
   }
 
   if (badge.type === 'trace') {
-    return <span className="pill-trace-ai">{badge.label}</span>;
+    const title =
+      badge.label === 'Unknown'
+        ? 'AI attribution unavailable'
+        : `AI attribution: ${badge.label}`;
+    const className = badge.label === 'Unknown' ? 'pill-trace-unknown' : 'pill-trace-ai';
+    return <span className={className} title={title}>{badge.label}</span>;
   }
 
   if (badge.type === 'contribution' && badge.stats) {

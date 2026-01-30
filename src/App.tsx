@@ -24,10 +24,9 @@ import { indexRepo } from './core/repo/indexer';
 function DocsView(props: {
   repoState: RepoState;
   setRepoState: React.Dispatch<React.SetStateAction<RepoState>>;
-  setActionError: (error: string | null) => void;
   onClose: () => void;
 }) {
-  const { repoState, setRepoState, setActionError, onClose } = props;
+  const { repoState, setRepoState, onClose } = props;
   const [isLoading, setIsLoading] = useState(false);
 
   // Auto-load current directory as repo when Docs is opened without a loaded repo
@@ -40,7 +39,7 @@ function DocsView(props: {
       setIsLoading(true);
       try {
         // Try to use current working directory
-        const cwd = await import('@tauri-apps/api/path').then(m => m.appDataDir()).catch(() => null);
+        const _cwd = await import('@tauri-apps/api/path').then(m => m.appDataDir()).catch(() => null);
         // Fall back to a sensible default or prompt user
         // For now, we'll try to detect the repo from the current URL or use a default
         const defaultPath = '/Users/jamiecraik/dev/narrative'; // Fallback for dev
@@ -195,7 +194,6 @@ export default function App() {
           <DocsView 
             repoState={repoState}
             setRepoState={setRepoState}
-            setActionError={setActionError}
             onClose={() => setMode('repo')}
           />
         ) : mode === 'speculate' ? (

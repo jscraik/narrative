@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { FileText, BookOpen, X, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import type { CodeHTMLProps, Elements } from 'react-markdown';
 import { listNarrativeFiles, readNarrativeFile } from '../../core/tauri/narrativeFs';
 import { MermaidDiagram } from './MermaidDiagram';
 
@@ -41,7 +42,7 @@ export function DocsOverviewPanel({ repoRoot, onClose }: DocsOverviewPanelProps)
   const [selectedDoc, setSelectedDoc] = useState<DocFile | null>(null);
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [_error, setError] = useState<string>('');
 
   // List available documentation files from .narrative/
   useEffect(() => {
@@ -117,18 +118,18 @@ export function DocsOverviewPanel({ repoRoot, onClose }: DocsOverviewPanelProps)
   }, [selectedDoc, repoRoot]);
 
   // Custom components for ReactMarkdown
-  const components = {
-    code({ node, inline, className, children, ...props }: any) {
-      const match = /language-(\w+)/.exec(className || '');
+  const components: Elements = {
+    code(props: CodeHTMLProps) {
+      const match = /language-(\w+)/.exec(props.className || '');
       const language = match?.[1] || '';
       
       if (language === 'mermaid') {
-        return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
+        return <MermaidDiagram chart={String(props.children).replace(/\n$/, '')} />;
       }
       
       return (
-        <code className={className} {...props}>
-          {children}
+        <code className={props.className} {...props}>
+          {props.children}
         </code>
       );
     },

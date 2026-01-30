@@ -1,0 +1,80 @@
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - README.md
+      - docs/**
+      - .vale.ini
+      - styles/**
+      - brand/**
+      - .github/workflows/docs.yml
+  push:
+    branches:
+      - main
+    paths:
+      - README.md
+      - docs/**
+      - .vale.ini
+      - styles/**
+      - brand/**
+      - .github/workflows/docs.yml
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Brand assets check
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          root = Path(".")
+          required_files = [
+              root / "brand/brand-mark.webp",
+              root / "brand/brand-mark@2x.webp",
+              root / "brand/README.md",
+          ]
+          missing = [str(path) for path in required_files if not path.exists()]
+          if missing:
+              print("Missing brand assets:", ", ".join(missing))
+              sys.exit(1)
+
+          readme = root / "README.md"
+          if not readme.exists():
+              print("Missing README.md")
+              sys.exit(1)
+
+          text = readme.read_text(encoding="utf-8")
+          required_snippets = [
+              "brand/brand-mark.webp",
+              "brAInwav",
+              "from demo to duty",
+          ]
+          missing_snippets = [snippet for snippet in required_snippets if snippet not in text]
+          if missing_snippets:
+              print("README.md is missing brand signature snippet(s):", ", ".join(missing_snippets))
+              sys.exit(1)
+
+          print("Brand assets and signature verified.")
+          PY
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Docs lint
+        run: pnpm docs:lint

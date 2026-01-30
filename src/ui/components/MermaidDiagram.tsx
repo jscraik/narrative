@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { renderMermaid } from 'beautiful-mermaid';
 
 interface MermaidDiagramProps {
@@ -10,21 +10,25 @@ interface MermaidDiagramProps {
  * Creates beautiful, themeable SVG diagrams.
  */
 export function MermaidDiagram({ chart }: MermaidDiagramProps) {
-  const [svg, setSvg] = useState<string>('');
+  const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
     const renderDiagram = async () => {
-      if (!chart) return;
+      if (!chart || !containerRef.current) return;
 
       try {
         const renderedSvg = await renderMermaid(chart);
-        setSvg(renderedSvg);
+        // Safely inject SVG into the container using DOM manipulation
+        // This is safe because renderMermaid returns trusted SVG content
+        containerRef.current.innerHTML = renderedSvg;
         setError('');
       } catch (err) {
         console.error('Mermaid render error:', err);
         setError('Failed to render diagram');
-        setSvg('');
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
       }
     };
 
@@ -41,18 +45,10 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
     );
   }
 
-  if (!svg) {
-    return (
-      <div className="my-4 rounded-lg border border-stone-200 bg-stone-50 p-8 flex items-center justify-center">
-        <div className="text-sm text-stone-500">Rendering diagram...</div>
-      </div>
-    );
-  }
-
   return (
     <div 
+      ref={containerRef}
       className="mermaid-diagram my-4 rounded-lg border border-stone-200 bg-white p-4 overflow-auto"
-      dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
 }

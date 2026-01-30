@@ -119,6 +119,7 @@ export type TraceCommitSummary = {
   unknownLines: number;
   aiPercent: number;
   modelIds: string[];
+  toolNames: string[];
 };
 
 export type TraceCollectorStatus = {

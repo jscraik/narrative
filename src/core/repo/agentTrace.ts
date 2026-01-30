@@ -383,6 +383,8 @@ export async function scanAgentTraceRecords(
       ai_percent?: number;
       modelIds?: string[];
       model_ids?: string[];
+      toolNames?: string[];
+      tool_names?: string[];
     };
     files: Record<string, {
       path?: string;
@@ -411,7 +413,8 @@ export async function scanAgentTraceRecords(
     mixedLines: raw.mixedLines ?? raw.mixed_lines ?? 0,
     unknownLines: raw.unknownLines ?? raw.unknown_lines ?? 0,
     aiPercent: raw.aiPercent ?? raw.ai_percent ?? 0,
-    modelIds: raw.modelIds ?? raw.model_ids ?? []
+    modelIds: raw.modelIds ?? raw.model_ids ?? [],
+    toolNames: raw.toolNames ?? raw.tool_names ?? []
   });
 
   const normalizeFileSummary = (raw: typeof summariesResultRaw[string]['files'][string]): TraceFileSummary => ({
@@ -544,7 +547,7 @@ type TraceSummaryResult = {
   totals: { conversations: number; ranges: number };
 };
 
-async function getTraceSummaryForCommit(repoId: number, commitSha: string): Promise<TraceSummaryResult | null> {
+async function _getTraceSummaryForCommit(repoId: number, commitSha: string): Promise<TraceSummaryResult | null> {
   const db = await getDb();
   const rows = await db.select<
     Array<{ path: string; start_line: number; end_line: number; contributor_type: string; model_id: string | null }>
@@ -564,6 +567,13 @@ async function getTraceSummaryForCommit(repoId: number, commitSha: string): Prom
     `SELECT COUNT(DISTINCT tc.id) as conversations, COUNT(tr.id) as ranges\n     FROM trace_records r\n     JOIN trace_files tf ON tf.record_id = r.id\n     JOIN trace_conversations tc ON tc.file_id = tf.id\n     JOIN trace_ranges tr ON tr.conversation_id = tc.id\n     WHERE r.repo_id = $1 AND r.revision = $2`,
     [repoId, commitSha]
   );
+
+  const toolNamesRow = await db.select<Array<{ tool_name: string }>>(
+    `SELECT DISTINCT tool_name\n     FROM trace_records\n     WHERE repo_id = $1 AND revision = $2 AND tool_name IS NOT NULL`,
+    [repoId, commitSha]
+  );
+
+  const toolNames = toolNamesRow?.map((row) => row.tool_name) ?? [];
 
   const fileMap: Record<string, TraceFileSummary> = {};
   const modelIds = new Set<string>();
@@ -619,7 +629,8 @@ async function getTraceSummaryForCommit(repoId: number, commitSha: string): Prom
       mixedLines,
       unknownLines,
       aiPercent: toAiPercent(aiLines, totalLines),
-      modelIds: Array.from(modelIds)
+      modelIds: Array.from(modelIds),
+      toolNames
     },
     files: fileMap,
     totals: {

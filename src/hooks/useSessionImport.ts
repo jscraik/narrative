@@ -258,9 +258,18 @@ function applyTraceUpdate(
     const traceSummary = trace.byCommit[node.id];
     if (!traceSummary) return node;
     const existing = node.badges?.filter((b) => b.type !== 'trace') ?? [];
+    
+    const isUnknownOnly =
+      traceSummary.unknownLines > 0 &&
+      traceSummary.aiLines === 0 &&
+      traceSummary.humanLines === 0 &&
+      traceSummary.mixedLines === 0;
+    
+    const label = isUnknownOnly ? 'Unknown' : `AI ${traceSummary.aiPercent}%`;
+    
     return {
       ...node,
-      badges: [...existing, { type: 'trace' as const, label: `AI ${traceSummary.aiPercent}%` }]
+      badges: [...existing, { type: 'trace' as const, label }]
     };
   });
 

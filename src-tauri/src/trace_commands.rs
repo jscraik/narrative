@@ -20,6 +20,7 @@ pub struct TraceCommitSummary {
     pub unknown_lines: i64,
     pub ai_percent: i64,
     pub model_ids: Vec<String>,
+    pub tool_names: Vec<String>,
 }
 
 /// File-level trace summary
@@ -145,6 +146,23 @@ pub async fn get_trace_summary_for_commit(
         0
     };
 
+    // Get distinct tool names for this commit
+    let tool_rows = sqlx::query(
+        "SELECT DISTINCT tool_name
+         FROM trace_records
+         WHERE repo_id = $1 AND revision = $2 AND tool_name IS NOT NULL"
+    )
+    .bind(repo_id)
+    .bind(&commit_sha)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("Failed to get tool names: {}", e))?;
+
+    let tool_names: Vec<String> = tool_rows
+        .iter()
+        .map(|row| row.get::<String, _>("tool_name"))
+        .collect();
+
     // Get totals
     let totals_row = sqlx::query(
         "SELECT COUNT(DISTINCT tc.id) as conversations, COUNT(tr.id) as ranges
@@ -172,6 +190,7 @@ pub async fn get_trace_summary_for_commit(
             unknown_lines,
             ai_percent,
             model_ids: model_ids.into_iter().collect(),
+            tool_names,
         },
         files: file_map,
         totals: Totals {
