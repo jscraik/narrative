@@ -2,14 +2,11 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
 
 jobs:
-  # Build and release
   build:
     permissions:
       contents: write
@@ -34,12 +31,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install Rust stable
         uses: dtolnay/rust-action@stable
@@ -54,6 +64,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install
+
+      - name: Build frontend
+        run: pnpm build
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -72,15 +85,16 @@ jobs:
             ## Installation
             
             ### macOS
-            - Download `Narrative MVP_x64.app.tar.gz` for Intel Macs
-            - Download `Narrative MVP_aarch64.app.tar.gz` for Apple Silicon Macs
-            - Or use the `.dmg` installer
+            - Download `Narrative MVP_*.dmg` for easy installation (Intel or Apple Silicon)
+            - Or download `.app.tar.gz` and extract manually
             
             ### Windows
-            - Download `Narrative MVP_x64-setup.exe` or `Narrative MVP_x64.msi`
+            - Download `Narrative MVP_x64-setup.exe` for installer
+            - Or download `.msi` for enterprise deployment
             
             ### Linux
-            - Download `.AppImage`, `.deb`, or `.rpm` package
+            - Download `.AppImage` for portable use
+            - Or download `.deb` (Debian/Ubuntu) or `.rpm` (Fedora)
             
             ## Auto-Update
             This release supports automatic updates. The app will check for updates on launch.
@@ -94,40 +108,46 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    if: always() && needs.build.result == 'success'
     steps:
       - uses: actions/checkout@v4
       
-      - name: Download all release assets
-        uses: actions/download-artifact@v4
+      - name: Get release info
+        id: get_release
+        uses: actions/github-script@v7
         with:
-          path: artifacts
+          script: |
+            const { data: release } = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            core.setOutput('upload_url', release.upload_url);
+            core.setOutput('tag_name', release.tag_name);
 
       - name: Generate latest.json
         run: |
-          # This script generates the latest.json file needed by the updater
-          # It extracts signatures from the .sig files
-          
-          cat > latest.json << 'EOF'
+          VERSION="${{ steps.get_release.outputs.tag_name }}"
+          cat > latest.json << EOF
           {
-            "version": "${{ github.ref_name }}",
-            "notes": "See release notes at https://github.com/jscraik/narrative/releases/tag/${{ github.ref_name }}",
+            "version": "$VERSION",
+            "notes": "See release notes at https://github.com/jscraik/narrative/releases/tag/$VERSION",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "darwin-aarch64": {
-                "signature": "$(cat artifacts/*aarch64.app.tar.gz.sig 2>/dev/null || echo '')",
-                "url": "https://github.com/jscraik/narrative/releases/download/${{ github.ref_name }}/Narrative%20MVP_aarch64.app.tar.gz"
+                "signature": "",
+                "url": "https://github.com/jscraik/narrative/releases/download/$VERSION/Narrative%20MVP_aarch64.app.tar.gz"
               },
               "darwin-x86_64": {
-                "signature": "$(cat artifacts/*x64.app.tar.gz.sig 2>/dev/null || echo '')",
-                "url": "https://github.com/jscraik/narrative/releases/download/${{ github.ref_name }}/Narrative%20MVP_x64.app.tar.gz"
+                "signature": "",
+                "url": "https://github.com/jscraik/narrative/releases/download/$VERSION/Narrative%20MVP_x64.app.tar.gz"
               },
               "linux-x86_64": {
-                "signature": "$(cat artifacts/*.AppImage.sig 2>/dev/null || echo '')",
-                "url": "https://github.com/jscraik/narrative/releases/download/${{ github.ref_name }}/Narrative%20MVP_amd64.AppImage"
+                "signature": "",
+                "url": "https://github.com/jscraik/narrative/releases/download/$VERSION/Narrative%20MVP_amd64.AppImage"
               },
               "windows-x86_64": {
-                "signature": "$(cat artifacts/*x64-setup.exe.sig 2>/dev/null || echo '')",
-                "url": "https://github.com/jscraik/narrative/releases/download/${{ github.ref_name }}/Narrative%20MVP_x64-setup.exe"
+                "signature": "",
+                "url": "https://github.com/jscraik/narrative/releases/download/$VERSION/Narrative%20MVP_x64-setup.exe"
               }
             }
           }
@@ -138,7 +158,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.build.outputs.releaseUploadUrl }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./latest.json
           asset_name: latest.json
           asset_content_type: application/json
