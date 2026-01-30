@@ -113,9 +113,13 @@ From the ["Narrative Version Control"](https://twitter.com/kickingkeys/status/18
 | `src/core/repo/otelAdapter.ts` | Converts Codex OTEL events → TraceRecord | `otelEnvelopeToCodexEvents()`, `codexOtelEventsToTraceRecords()` |
 | `src/core/repo/agentTrace.ts` | Parses/stores Agent Trace JSON | `ingestTraceRecord()`, `scanAgentTraceRecords()`, `getTraceSummaryForCommit()` |
 | `src/core/repo/indexer.ts` | Orchestrates trace scanning during repo load | Lines 121-132: trace scanning phase |
+| `src-tauri/src/otlp_receiver.rs` | OTLP server for real-time trace collection | Receives OTEL events from Codex CLI, writes to log file |
 | `migrations/003_add_agent_trace.sql` | SQLite schema for trace data | Tables: trace_records, trace_files, trace_conversations, trace_ranges |
+| `migrations/004_session_attribution.sql` | SQLite schema for session linking | Tables: sessions, session_links, commit_contribution_stats |
 
-### 2.3 Database Schema (Migration 003)
+### 2.3 Database Schema
+
+#### Migration 003 (Trace Attribution)
 
 ```sql
 -- Main trace records (one per commit)
@@ -152,6 +156,59 @@ CREATE TABLE trace_ranges (
   end_line INTEGER NOT NULL,
   contributor_type TEXT,
   model_id TEXT
+);
+```
+
+#### Migration 004 (Session Linking & Attribution)
+
+```sql
+-- Sessions table (stores imported AI coding sessions)
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,              -- Deterministic session ID
+    repo_id INTEGER NOT NULL,
+    tool TEXT NOT NULL,                -- e.g., 'claude-code', 'cursor'
+    model TEXT,                         -- e.g., 'claude-4-opus-20250129'
+    checkpoint_kind TEXT DEFAULT 'ai_agent',
+    imported_at TEXT NOT NULL,
+    duration_min INTEGER,
+    message_count INTEGER DEFAULT 0,
+    files TEXT,                         -- JSON array of files touched
+    raw_json TEXT NOT NULL,             -- Full session trace data
+    FOREIGN KEY (repo_id) REFERENCES repos(id) ON DELETE CASCADE
+);
+
+-- Session-to-commit linking results
+CREATE TABLE session_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_id INTEGER NOT NULL,
+    session_id TEXT NOT NULL,
+    commit_sha TEXT NOT NULL,
+    confidence REAL NOT NULL,           -- 0.0 to 1.0 (auto-link threshold: 0.7)
+    auto_linked BOOLEAN NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (repo_id) REFERENCES repos(id) ON DELETE CASCADE,
+    UNIQUE(repo_id, session_id)
+);
+
+-- Pre-computed contribution statistics per commit
+CREATE TABLE commit_contribution_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_id INTEGER NOT NULL,
+    commit_sha TEXT NOT NULL,
+    -- Session-level stats
+    ai_agent_lines INTEGER DEFAULT 0,
+    ai_assist_lines INTEGER DEFAULT 0,
+    human_lines INTEGER DEFAULT 0,
+    total_lines INTEGER DEFAULT 0,
+    ai_percentage INTEGER DEFAULT 0,    -- 0-100
+    -- Metadata
+    primary_session_id TEXT,
+    tool TEXT,
+    model TEXT,
+    computed_at TEXT NOT NULL,
+    FOREIGN KEY (repo_id) REFERENCES repos(id) ON DELETE CASCADE,
+    FOREIGN KEY (primary_session_id) REFERENCES sessions(id) ON DELETE SET NULL,
+    UNIQUE(repo_id, commit_sha)
 );
 ```
 
@@ -482,6 +539,55 @@ src/ui/
 | "Context beyond code" | "Meeting transcripts, chat histories" | Not specced |
 | LLM summaries | "Smaller LLM to extract summaries and intent" | Not specced |
 | Real-time streaming | "Session as it happens" | Not specced |
+
+---
+
+## Part 10: Testing & Validation
+
+### 10.1 Unit Tests
+
+| Component | Test File | Coverage | Status |
+|-----------|-----------|----------|--------|
+| OTEL adapter parsing | `src/core/repo/__tests__/otelAdapter.test.ts` | Event envelope parsing, record conversion | ✅ |
+| AgentTraceSummary UI | `src/ui/components/__tests__/AgentTraceSummary.test.tsx` | Badge display, empty states, status indicators | ✅ |
+| Linking algorithm | `src-tauri/src/linking.rs` (lines 621-708) | Temporal overlap, file overlap, threshold logic | ✅ |
+
+### 10.2 Integration Tests
+
+| Scenario | Test Approach | Status |
+|----------|---------------|--------|
+| Session import → linking → SQLite | Manual: Import session file, verify `session_links` entry | ✅ Documented in ATTRIBUTION-FINAL-SUMMARY |
+| Trace scan → badge → timeline | Manual: Scan `.narrative/trace/`, verify timeline badges appear | ✅ Documented in build-plan |
+| OTLP ingest → database | Smoke test: `runOtlpSmokeTest()` command | ✅ Implemented in UI |
+
+### 10.3 Validation Commands
+
+```bash
+# Run Rust tests (including linking algorithm)
+cd src-tauri
+cargo test
+
+# Verify trace scan functionality
+# 1. Place test trace file in .narrative/trace/
+# 2. Run: pnpm tauri dev
+# 3. Open repo and verify badges appear
+
+# Verify session linking
+# 1. Import session via UI or API
+# 2. Check confidence score in SessionExcerpts panel
+# 3. Verify auto-link at ≥70% confidence
+```
+
+### 10.4 Performance Metrics
+
+From `ATTRIBUTION-FINAL-SUMMARY.md`:
+
+| Metric | Target | Actual | Status |
+|--------|--------|--------|--------|
+| Single import | < 500ms | ~100ms | ✅ |
+| Timeline query | < 100ms | ~20ms (cached) | ✅ |
+| Batch (10 files) | < 2s | ~1s | ✅ |
+| Secret scan | N/A | ~1ms per KB | ✅ |
 
 ---
 
