@@ -43,6 +43,54 @@ import { TopNav, type Mode } from './ui/components/TopNav';
 import { BranchView } from './ui/views/BranchView';
 import { SpeculateView } from './ui/views/SpeculateView';
 
+/**
+ * Simple LRU (Least Recently Used) cache with a maximum size limit.
+ * Prevents unbounded memory growth by evicting the oldest entry when the limit is reached.
+ */
+class LRUCache<K, V> {
+  private cache: Map<K, V>;
+  private maxEntries: number;
+
+  constructor(maxEntries: number = 100) {
+    this.cache = new Map();
+    this.maxEntries = maxEntries;
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    // Remove existing key to update position
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    // Evict oldest if at capacity
+    else if (this.cache.size >= this.maxEntries) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+    // Add to end (most recently used)
+    this.cache.set(key, value);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+}
+
 type RepoState =
   | { status: 'idle' }
   | { status: 'loading'; path: string }
@@ -158,7 +206,7 @@ export default function App() {
     configPath: string | null;
   }>({ enabled: null, configPath: null });
 
-  const diffCache = useRef<Map<string, string>>(new Map());
+  const diffCache = useRef(new LRUCache<string, string>(100)); // Max 100 cached diffs
   const repoStateRef = useRef(repoState);
 
   useEffect(() => {
@@ -176,6 +224,9 @@ export default function App() {
     try {
       const { model, repo } = await indexRepo(selected, 60);
       setRepoState({ status: 'ready', path: selected, model, repo });
+
+      // Clear cache when loading a new repo to avoid stale data
+      diffCache.current.clear();
 
       try {
         await setActiveRepoRoot(repo.root);
