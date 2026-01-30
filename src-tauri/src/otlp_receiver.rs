@@ -19,6 +19,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
+    mem,
     net::SocketAddr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -277,19 +278,31 @@ pub fn run_otlp_smoke_test(
 }
 
 pub fn start_otlp_receiver(app_handle: AppHandle, state: OtelReceiverState) -> Result<(), String> {
-    {
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+
+    // Atomically swap the runtime, handling any existing one
+    // This fixes the race condition where concurrent calls could both pass is_some() check
+    let old_runtime = {
         let mut guard = state.runtime.lock().map_err(|e| e.to_string())?;
-        if guard.is_some() {
-            return Ok(());
+        mem::replace(
+            &mut *guard,
+            Some(OtelReceiverRuntime {
+                shutdown: Some(shutdown_tx),
+            }),
+        )
+    };
+
+    // Gracefully shut down any existing runtime
+    if let Some(old_runtime) = old_runtime {
+        if let Some(shutdown) = old_runtime.shutdown {
+            let _ = shutdown.send(());
         }
-        let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
-        *guard = Some(OtelReceiverRuntime {
-            shutdown: Some(shutdown_tx),
-        });
-        let context = ReceiverContext {
-            state: state.clone(),
-            app_handle: app_handle.clone(),
-        };
+    }
+
+    let context = ReceiverContext {
+        state: state.clone(),
+        app_handle: app_handle.clone(),
+    };
 
         tauri::async_runtime::spawn(async move {
             let runtime_state = context.state.clone();
@@ -344,7 +357,6 @@ pub fn start_otlp_receiver(app_handle: AppHandle, state: OtelReceiverState) -> R
 
             clear_receiver_runtime(&runtime_state);
         });
-    }
 
     Ok(())
 }
