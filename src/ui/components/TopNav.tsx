@@ -1,8 +1,8 @@
 import clsx from 'clsx';
-import { FileText, FolderOpen, GitBranch, LayoutGrid, Network } from 'lucide-react';
+import { BookOpen, FileText, FolderOpen, GitBranch, LayoutGrid, Network } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
-export type Mode = 'demo' | 'repo' | 'speculate';
+export type Mode = 'demo' | 'repo' | 'speculate' | 'docs';
 
 export function TopNav(props: {
   mode: Mode;
@@ -78,6 +78,7 @@ export function TopNav(props: {
           <Tab id="demo" label="Demo" icon={<LayoutGrid className="h-4 w-4" />} />
           <Tab id="repo" label="Repo" icon={<GitBranch className="h-4 w-4" />} />
           <Tab id="speculate" label="Speculate" icon={<Network className="h-4 w-4" />} />
+          <Tab id="docs" label="Docs" icon={<BookOpen className="h-4 w-4" />} />
         </div>
       </div>
 

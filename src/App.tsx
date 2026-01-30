@@ -8,6 +8,7 @@ import { RepoEmptyState } from './ui/components/RepoEmptyState';
 import { TopNav, type Mode } from './ui/components/TopNav';
 import { BranchView } from './ui/views/BranchView';
 import { SpeculateView } from './ui/views/SpeculateView';
+import { DocsOverviewPanel } from './ui/components/DocsOverviewPanel';
 import { useRepoLoader } from './hooks/useRepoLoader';
 import { useUpdater } from './hooks/useUpdater';
 import { useTraceCollector } from './hooks/useTraceCollector';
@@ -124,7 +125,14 @@ export default function App() {
       </TopNav>
 
       <div className="flex-1 overflow-hidden">
-        {mode === 'speculate' ? (
+        {mode === 'docs' ? (
+          <div className="flex-1 overflow-hidden">
+            <DocsOverviewPanel 
+              repoRoot={repoState.status === 'ready' ? repoState.repo.root : ''}
+              onClose={() => setMode('repo')}
+            />
+          </div>
+        ) : mode === 'speculate' ? (
           <SpeculateView />
         ) : mode === 'repo' && repoState.status === 'loading' ? (
           <div className="p-8 text-sm text-stone-500">
