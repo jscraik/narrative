@@ -93,6 +93,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             sql: include_str!("../migrations/006_rewrite_keys.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "add_attribution_note_meta",
+            sql: include_str!("../migrations/007_attribution_note_meta.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
@@ -124,6 +130,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             attribution::commands::import_attribution_note,
             attribution::commands::import_attribution_notes_batch,
             attribution::commands::export_attribution_note,
+            attribution::commands::get_attribution_note_summary,
+            attribution::commands::get_attribution_prefs,
+            attribution::commands::set_attribution_prefs,
+            attribution::commands::purge_attribution_prompt_meta,
+            attribution::commands::get_git_ai_cli_status,
             // OTLP receiver commands
             otlp_receiver::set_active_repo_root,
             otlp_receiver::set_otlp_receiver_enabled,

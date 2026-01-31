@@ -4,16 +4,26 @@
 //! the appropriate internal modules. Each command is a small facade
 //! over the actual implementation logic.
 
-use super::models::ContributionStats;
+use super::cli::{detect_git_ai_cli, GitAiCliStatus};
+use super::coverage::compute_attribution_coverage;
+use super::models::{AttributionNoteSummary, ContributionStats};
+use super::note_meta::fetch_attribution_note_meta;
 use super::notes_io::{
     AttributionNoteBatchSummary, AttributionNoteExportSummary, AttributionNoteImportSummary,
 };
+use super::prefs::{fetch_or_create_prefs, update_prefs, AttributionPrefs, AttributionPrefsUpdate};
 use super::session_stats::compute_human_contribution;
 use super::stats::{
     compute_contribution_from_attributions, fetch_cached_stats, fetch_linked_session,
 };
 use crate::DbState;
 use tauri::State;
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributionPromptPurgeSummary {
+    pub removed: u32,
+}
 
 /// Get contribution stats for a commit
 ///
@@ -120,6 +130,98 @@ pub async fn export_attribution_note(
     commit_sha: String,
 ) -> Result<AttributionNoteExportSummary, String> {
     super::notes_io::export_attribution_note(&db.0, repo_id, commit_sha).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn get_attribution_note_summary(
+    db: State<'_, DbState>,
+    repo_id: i64,
+    commit_sha: String,
+) -> Result<AttributionNoteSummary, String> {
+    let coverage = compute_attribution_coverage(&db.0, repo_id, &commit_sha).await?;
+    let meta = fetch_attribution_note_meta(&db.0, repo_id, &commit_sha).await?;
+
+    if let Some(meta) = meta {
+        return Ok(AttributionNoteSummary {
+            commit_sha,
+            has_note: true,
+            note_ref: Some(meta.note_ref.clone()),
+            note_hash: Some(meta.note_hash),
+            schema_version: meta.schema_version,
+            metadata_available: meta.metadata_available != 0,
+            metadata_cached: meta.metadata_cached != 0,
+            prompt_count: meta.prompt_count,
+            coverage,
+            evidence_source: Some(meta.note_ref),
+        });
+    }
+
+    Ok(AttributionNoteSummary {
+        commit_sha,
+        has_note: false,
+        note_ref: None,
+        note_hash: None,
+        schema_version: None,
+        metadata_available: false,
+        metadata_cached: false,
+        prompt_count: None,
+        coverage,
+        evidence_source: None,
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn get_attribution_prefs(
+    db: State<'_, DbState>,
+    repo_id: i64,
+) -> Result<AttributionPrefs, String> {
+    fetch_or_create_prefs(&db.0, repo_id).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn set_attribution_prefs(
+    db: State<'_, DbState>,
+    repo_id: i64,
+    update: AttributionPrefsUpdate,
+) -> Result<AttributionPrefs, String> {
+    update_prefs(&db.0, repo_id, update).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn purge_attribution_prompt_meta(
+    db: State<'_, DbState>,
+    repo_id: i64,
+) -> Result<AttributionPromptPurgeSummary, String> {
+    let removed = sqlx::query(
+        r#"
+        DELETE FROM attribution_prompt_meta
+        WHERE repo_id = ?
+        "#,
+    )
+    .bind(repo_id)
+    .execute(&*db.0)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let _ = sqlx::query(
+        r#"
+        UPDATE attribution_prefs
+        SET last_purged_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE repo_id = ?
+        "#,
+    )
+    .bind(repo_id)
+    .execute(&*db.0)
+    .await;
+
+    Ok(AttributionPromptPurgeSummary {
+        removed: removed.rows_affected() as u32,
+    })
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn get_git_ai_cli_status() -> Result<GitAiCliStatus, String> {
+    Ok(detect_git_ai_cli().await)
 }
 
 /// Compute and cache stats for a batch of commits

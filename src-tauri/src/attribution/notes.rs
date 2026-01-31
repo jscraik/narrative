@@ -29,9 +29,27 @@ pub struct NoteSourceMeta {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct NotePromptMeta {
+    pub tool: Option<String>,
+    pub model: Option<String>,
+    pub human_author: Option<String>,
+    pub summary: Option<String>,
+    pub total_additions: Option<i32>,
+    pub total_deletions: Option<i32>,
+    pub accepted_lines: Option<i32>,
+    pub overridden_lines: Option<i32>,
+    pub contains_messages: bool,
+    pub messages_redacted: Option<bool>,
+    pub raw_payload: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct ParsedAttributionNote {
     pub files: Vec<NoteFile>,
     pub sources: HashMap<String, NoteSourceMeta>,
+    pub prompts: HashMap<String, NotePromptMeta>,
+    pub schema_version: Option<String>,
+    pub messages_redacted: Option<bool>,
     pub rewrite_key: Option<String>,
     pub rewrite_algorithm: Option<String>,
 }
@@ -48,19 +66,28 @@ struct NotePayload {
     rewrite_key: Option<String>,
     #[serde(rename = "rewrite_algorithm")]
     rewrite_algorithm: Option<String>,
+    messages_redacted: Option<bool>,
     #[serde(alias = "prompts")]
     sources: Option<HashMap<String, NoteSourcePayload>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct NoteSourcePayload {
     #[serde(rename = "agent_id")]
     agent_id: Option<NoteAgentId>,
     checkpoint_kind: Option<String>,
     model: Option<String>,
+    human_author: Option<String>,
+    summary: Option<String>,
+    messages: Option<serde_json::Value>,
+    total_additions: Option<i32>,
+    total_deletions: Option<i32>,
+    accepted_lines: Option<i32>,
+    overridden_lines: Option<i32>,
+    messages_redacted: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct NoteAgentId {
     tool: Option<String>,
     id: Option<String>,
@@ -182,30 +209,64 @@ pub fn parse_attribution_note(message: &str) -> ParsedAttributionNote {
 
     let json_text = json_lines.join("\n").trim().to_string();
     let mut sources: HashMap<String, NoteSourceMeta> = HashMap::new();
+    let mut prompts: HashMap<String, NotePromptMeta> = HashMap::new();
 
+    let mut schema_version: Option<String> = None;
+    let mut messages_redacted: Option<bool> = None;
     let mut rewrite_key: Option<String> = None;
     let mut rewrite_algorithm: Option<String> = None;
 
     if !json_text.is_empty() {
         if let Ok(payload) = serde_json::from_str::<NotePayload>(&json_text) {
+            schema_version = payload.schema_version.clone();
+            messages_redacted = payload.messages_redacted;
             rewrite_key = payload.rewrite_key.clone();
             rewrite_algorithm = payload.rewrite_algorithm.clone();
             if let Some(map) = payload.sources {
                 for (session_id, source) in map {
+                    let prompt_id = session_id.clone();
                     let tool = source.agent_id.as_ref().and_then(|id| id.tool.clone());
                     let model = source
                         .agent_id
                         .as_ref()
                         .and_then(|id| id.model.clone())
                         .or(source.model.clone());
-                    let conversation_id = source.agent_id.and_then(|id| id.id);
+                    let conversation_id = source.agent_id.as_ref().and_then(|id| id.id.clone());
+                    let tool_clone = tool.clone();
+                    let model_clone = model.clone();
+                    let raw_payload = serde_json::to_value(&source).ok();
+                    let contains_messages = source.messages.is_some();
+                    let checkpoint_kind = source.checkpoint_kind;
+                    let human_author = source.human_author;
+                    let summary = source.summary;
+                    let total_additions = source.total_additions;
+                    let total_deletions = source.total_deletions;
+                    let accepted_lines = source.accepted_lines;
+                    let overridden_lines = source.overridden_lines;
+                    let source_messages_redacted = source.messages_redacted;
                     sources.insert(
                         session_id,
                         NoteSourceMeta {
                             tool,
                             model,
-                            checkpoint_kind: source.checkpoint_kind,
+                            checkpoint_kind,
                             conversation_id,
+                        },
+                    );
+                    prompts.insert(
+                        prompt_id,
+                        NotePromptMeta {
+                            tool: tool_clone,
+                            model: model_clone,
+                            human_author,
+                            summary,
+                            total_additions,
+                            total_deletions,
+                            accepted_lines,
+                            overridden_lines,
+                            contains_messages,
+                            messages_redacted: source_messages_redacted,
+                            raw_payload,
                         },
                     );
                 }
@@ -216,6 +277,9 @@ pub fn parse_attribution_note(message: &str) -> ParsedAttributionNote {
     ParsedAttributionNote {
         files,
         sources,
+        prompts,
+        schema_version,
+        messages_redacted,
         rewrite_key,
         rewrite_algorithm,
     }

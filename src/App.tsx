@@ -90,9 +90,12 @@ export default function App() {
     setRepoState,
     indexingProgress,
     codexPromptExport,
+    attributionPrefs,
     actionError,
     setActionError,
     openRepo,
+    updateAttributionPrefs,
+    purgeAttributionMetadata,
     diffCache
   } = useRepoLoader();
 
@@ -239,6 +242,9 @@ export default function App() {
             onToggleCodexOtelReceiver={updateCodexOtelReceiverEnabled}
             onOpenCodexOtelDocs={traceCollectorHandlers.openCodexOtelDocs}
             codexPromptExport={codexPromptExport}
+            attributionPrefs={attributionPrefs}
+            onUpdateAttributionPrefs={updateAttributionPrefs}
+            onPurgeAttributionMetadata={purgeAttributionMetadata}
             onUnlinkSession={sessionImportHandlers.unlinkSession}
             actionError={actionError}
             onDismissActionError={() => setActionError(null)}

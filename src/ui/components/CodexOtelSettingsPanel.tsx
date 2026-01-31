@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import type { TraceCollectorConfig } from "../../core/types";
+import { useEffect, useState } from 'react';
+import type { AttributionPrefs, AttributionPrefsUpdate } from '../../core/attribution-api';
+import type { TraceCollectorConfig } from '../../core/types';
 
 export function CodexOtelSettingsPanel(props: {
   traceConfig?: TraceCollectorConfig;
@@ -8,6 +9,9 @@ export function CodexOtelSettingsPanel(props: {
   onOpenCodexOtelDocs?: () => void;
   logUserPromptEnabled?: boolean | null;
   logUserPromptConfigPath?: string | null;
+  attributionPrefs?: AttributionPrefs | null;
+  onUpdateAttributionPrefs?: (update: AttributionPrefsUpdate) => void;
+  onPurgeAttributionMetadata?: () => void;
 }) {
   const {
     traceConfig,
@@ -15,14 +19,24 @@ export function CodexOtelSettingsPanel(props: {
     onToggleCodexOtelReceiver,
     onOpenCodexOtelDocs,
     logUserPromptEnabled,
-    logUserPromptConfigPath
+    logUserPromptConfigPath,
+    attributionPrefs,
+    onUpdateAttributionPrefs,
+    onPurgeAttributionMetadata
   } = props;
-  const [otelPath, setOtelPath] = useState(traceConfig?.codexOtelLogPath ?? "/tmp/codex-otel.json");
+  const [otelPath, setOtelPath] = useState(traceConfig?.codexOtelLogPath ?? '/tmp/codex-otel.json');
+  const [retentionDays, setRetentionDays] = useState(
+    attributionPrefs?.retentionDays ? String(attributionPrefs.retentionDays) : ''
+  );
 
   useEffect(() => {
     if (!traceConfig?.codexOtelLogPath) return;
     setOtelPath(traceConfig.codexOtelLogPath);
   }, [traceConfig?.codexOtelLogPath]);
+
+  useEffect(() => {
+    setRetentionDays(attributionPrefs?.retentionDays ? String(attributionPrefs.retentionDays) : '');
+  }, [attributionPrefs?.retentionDays]);
 
   const receiverEnabled = traceConfig?.codexOtelReceiverEnabled ?? false;
 
@@ -68,9 +82,9 @@ export function CodexOtelSettingsPanel(props: {
           <button
             type="button"
             className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
-              otelPath.trim() && otelPath !== (traceConfig?.codexOtelLogPath ?? "/tmp/codex-otel.json")
-                ? "border-sky-500 bg-sky-50 text-sky-700 hover:bg-sky-100"
-                : "border-stone-200 bg-white text-stone-600 hover:bg-stone-100"
+              otelPath.trim() && otelPath !== (traceConfig?.codexOtelLogPath ?? '/tmp/codex-otel.json')
+                ? 'border-sky-500 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-100'
             }`}
             onClick={() => onUpdateCodexOtelPath?.(otelPath.trim())}
             disabled={!otelPath.trim()}
@@ -100,6 +114,80 @@ export function CodexOtelSettingsPanel(props: {
             ) : null}
           </div>
         ) : null}
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3 rounded-lg border border-stone-200 bg-white p-4">
+        <div>
+          <div className="text-xs font-semibold text-stone-600">Attribution Notes</div>
+          <div className="text-[11px] text-stone-400">
+            Control git-ai metadata caching and Source Lens overlays for this repo.
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-stone-600">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-stone-300 text-sky-600 focus:ring-sky-200"
+            checked={attributionPrefs?.cachePromptMetadata ?? false}
+            onChange={(event) => onUpdateAttributionPrefs?.({ cachePromptMetadata: event.target.checked })}
+          />
+          Cache prompt metadata locally
+        </label>
+
+        <label className="flex items-center gap-2 text-xs text-stone-600">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-stone-300 text-sky-600 focus:ring-sky-200"
+            checked={attributionPrefs?.storePromptText ?? false}
+            onChange={(event) => onUpdateAttributionPrefs?.({ storePromptText: event.target.checked })}
+          />
+          Store prompt text (may include sensitive data)
+        </label>
+
+        <label className="flex items-center gap-2 text-xs text-stone-600">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-stone-300 text-sky-600 focus:ring-sky-200"
+            checked={attributionPrefs?.showLineOverlays ?? true}
+            onChange={(event) => onUpdateAttributionPrefs?.({ showLineOverlays: event.target.checked })}
+          />
+          Show line overlays in Source Lens
+        </label>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            value={retentionDays}
+            onChange={(event) => setRetentionDays(event.target.value)}
+            className="w-24 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700"
+            placeholder="Days"
+          />
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-stone-200 bg-white px-2 py-1 text-[11px] font-semibold text-stone-600 hover:bg-stone-100"
+            onClick={() => {
+              const trimmed = retentionDays.trim();
+              if (!trimmed) {
+                onUpdateAttributionPrefs?.({ clearRetentionDays: true });
+                return;
+              }
+              const parsed = Number.parseInt(trimmed, 10);
+              if (Number.isFinite(parsed) && parsed > 0) {
+                onUpdateAttributionPrefs?.({ retentionDays: parsed });
+              }
+            }}
+          >
+            Save retention
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+            onClick={onPurgeAttributionMetadata}
+          >
+            Purge cached prompts
+          </button>
+        </div>
       </div>
     </div>
   );

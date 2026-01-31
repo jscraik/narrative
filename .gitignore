@@ -18,6 +18,9 @@ yarn-error.log*
 .narrative/trace
 .narrative/meta/
 
+# Local specs (generated)
+.spec/
+
 # Generated icons (build artifacts)
 src-tauri/icons/*.png
 src-tauri/icons/*.icns

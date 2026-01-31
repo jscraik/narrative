@@ -141,9 +141,7 @@ fn scan_file_for_violations(
                 Err(_) => continue, // Invalid regex, skip this rule
             }
         } else {
-            content
-                .match_indices(&rule.pattern)
-                .collect()
+            content.match_indices(&rule.pattern).collect()
         };
 
         for (_, matched) in matches {

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { type KeyboardEvent, useState } from 'react';
 import { MessageSquare, Activity, Settings, TestTube, FileCode } from 'lucide-react';
+import type { AttributionPrefs, AttributionPrefsUpdate } from '../../core/attribution-api';
 import type { SessionExcerpt, TestRun, TraceCommitSummary, TraceCollectorStatus, TraceCollectorConfig, TraceRange } from '../../core/types';
 import { SessionExcerpts } from './SessionExcerpts';
 import { TraceTranscriptPanel } from './TraceTranscriptPanel';
@@ -32,25 +33,28 @@ interface RightPanelTabsProps {
   onUnlinkSession?: (sessionId: string) => void;
   onCommitClick: (commitSha: string) => void;
   selectedCommitId: string | null;
-  
+
   // Attribution data
   traceSummary?: TraceCommitSummary;
   traceStatus?: TraceCollectorStatus;
   hasFiles: boolean;
   onExportAgentTrace?: () => void;
   onRunOtlpSmokeTest?: () => void;
-  
+
   // Settings data
   traceConfig?: TraceCollectorConfig;
   onUpdateCodexOtelPath?: (path: string) => void;
   onToggleCodexOtelReceiver?: (enabled: boolean) => void;
   onOpenCodexOtelDocs?: () => void;
   codexPromptExport?: { enabled: boolean | null; configPath: string | null };
-  
+  attributionPrefs?: AttributionPrefs | null;
+  onUpdateAttributionPrefs?: (update: AttributionPrefsUpdate) => void;
+  onPurgeAttributionMetadata?: () => void;
+
   // Test data
   testRun?: TestRun;
   onTestFileClick: (path: string) => void;
-  
+
   // Diff data
   selectedCommitSha: string | null;
   repoId?: number;
@@ -80,6 +84,9 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     onToggleCodexOtelReceiver,
     onOpenCodexOtelDocs,
     codexPromptExport,
+    attributionPrefs,
+    onUpdateAttributionPrefs,
+    onPurgeAttributionMetadata,
     testRun,
     onTestFileClick,
     selectedCommitSha,
@@ -103,15 +110,49 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
     return activeTab;
   })();
 
+  const tabIds = TABS.map((tab) => tab.id);
+
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = tabIds.indexOf(effectiveTab);
+    if (currentIndex === -1) return;
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown': {
+        event.preventDefault();
+        const nextIndex = (currentIndex + 1) % tabIds.length;
+        setActiveTab(tabIds[nextIndex]);
+        break;
+      }
+      case 'ArrowLeft':
+      case 'ArrowUp': {
+        event.preventDefault();
+        const nextIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+        setActiveTab(tabIds[nextIndex]);
+        break;
+      }
+      case 'Home':
+        event.preventDefault();
+        setActiveTab(tabIds[0]);
+        break;
+      case 'End':
+        event.preventDefault();
+        setActiveTab(tabIds[tabIds.length - 1]);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div className="flex flex-col h-full gap-4">
       {/* Tab Navigation */}
       <div className="card p-2">
-        <div className="flex gap-1">
+        <div className="flex gap-1" role="tablist" aria-label="Right panel tabs" onKeyDown={handleTabKeyDown}>
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = effectiveTab === tab.id;
-            const hasContent = 
+            const hasContent =
               (tab.id === 'session' && hasSessionContent) ||
               (tab.id === 'attribution' && hasAttributionContent) ||
               (tab.id === 'tests' && hasTestContent) ||
@@ -120,19 +161,22 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             return (
               <button
                 key={tab.id}
+                id={`tab-${tab.id}`}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={`
                   flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
                   transition-all duration-150
-                  ${isActive 
-                    ? 'bg-sky-100 text-sky-700' 
+                  ${isActive
+                    ? 'bg-sky-100 text-sky-700'
                     : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
                   }
                   ${!hasContent && tab.id !== 'settings' ? 'opacity-60' : ''}
                 `}
                 aria-selected={isActive}
+                aria-controls={`panel-${tab.id}`}
                 role="tab"
+                tabIndex={isActive ? 0 : -1}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -145,7 +189,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       {/* Tab Content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {effectiveTab === 'session' && (
-          <div className="flex flex-col gap-4">
+          <div id="panel-session" role="tabpanel" aria-labelledby="tab-session" className="flex flex-col gap-4">
             <SessionExcerpts
               excerpts={sessionExcerpts}
               selectedFile={selectedFile}
@@ -163,28 +207,37 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
         )}
 
         {effectiveTab === 'attribution' && (
-          <AgentTraceSummary
-            summary={traceSummary}
-            hasFiles={hasFiles}
-            status={traceStatus}
-            onExport={onExportAgentTrace}
-            onSmokeTest={onRunOtlpSmokeTest}
-          />
+          <div id="panel-attribution" role="tabpanel" aria-labelledby="tab-attribution">
+            <AgentTraceSummary
+              summary={traceSummary}
+              hasFiles={hasFiles}
+              status={traceStatus}
+              onExport={onExportAgentTrace}
+              onSmokeTest={onRunOtlpSmokeTest}
+            />
+          </div>
         )}
 
         {effectiveTab === 'settings' && (
-          <CodexOtelSettingsPanel
-            traceConfig={traceConfig}
-            onUpdateCodexOtelPath={onUpdateCodexOtelPath}
-            onToggleCodexOtelReceiver={onToggleCodexOtelReceiver}
-            onOpenCodexOtelDocs={onOpenCodexOtelDocs}
-            logUserPromptEnabled={codexPromptExport?.enabled ?? null}
-            logUserPromptConfigPath={codexPromptExport?.configPath ?? null}
-          />
+          <div id="panel-settings" role="tabpanel" aria-labelledby="tab-settings">
+            <CodexOtelSettingsPanel
+              traceConfig={traceConfig}
+              onUpdateCodexOtelPath={onUpdateCodexOtelPath}
+              onToggleCodexOtelReceiver={onToggleCodexOtelReceiver}
+              onOpenCodexOtelDocs={onOpenCodexOtelDocs}
+              logUserPromptEnabled={codexPromptExport?.enabled ?? null}
+              logUserPromptConfigPath={codexPromptExport?.configPath ?? null}
+              attributionPrefs={attributionPrefs}
+              onUpdateAttributionPrefs={onUpdateAttributionPrefs}
+              onPurgeAttributionMetadata={onPurgeAttributionMetadata}
+            />
+          </div>
         )}
 
         {effectiveTab === 'tests' && (
-          <TestResultsPanel testRun={testRun} onFileClick={onTestFileClick} />
+          <div id="panel-tests" role="tabpanel" aria-labelledby="tab-tests">
+            <TestResultsPanel testRun={testRun} onFileClick={onTestFileClick} />
+          </div>
         )}
 
         {/* Source Lens - shown in all tabs when applicable */}
@@ -194,6 +247,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
               repoId={repoId}
               commitSha={selectedCommitSha}
               filePath={selectedFile}
+              prefsOverride={attributionPrefs}
             />
           </div>
         )}

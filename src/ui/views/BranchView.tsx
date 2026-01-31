@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileSelectionProvider, useFileSelection } from '../../core/context/FileSelectionContext';
 import { testRuns } from '../../core/demo/nearbyGridDemo';
 import type { BranchViewModel, FileChange, TestRun, TraceRange } from '../../core/types';
+import type { AttributionPrefs, AttributionPrefsUpdate } from '../../core/attribution-api';
 import { BranchHeader } from '../components/BranchHeader';
 import { FilesChanged } from '../components/FilesChanged';
 import { ImportErrorBanner } from '../components/ImportErrorBanner';
@@ -20,6 +21,9 @@ function BranchViewInner(props: {
   onToggleCodexOtelReceiver?: (enabled: boolean) => void;
   onOpenCodexOtelDocs?: () => void;
   codexPromptExport?: { enabled: boolean | null; configPath: string | null };
+  attributionPrefs?: AttributionPrefs | null;
+  onUpdateAttributionPrefs?: (update: AttributionPrefsUpdate) => void;
+  onPurgeAttributionMetadata?: () => void;
   onUnlinkSession?: (sessionId: string) => void;
   actionError?: string | null;
   onDismissActionError?: () => void;
@@ -35,6 +39,9 @@ function BranchViewInner(props: {
     onToggleCodexOtelReceiver,
     onOpenCodexOtelDocs,
     codexPromptExport,
+    attributionPrefs,
+    onUpdateAttributionPrefs,
+    onPurgeAttributionMetadata,
     onUnlinkSession,
     actionError,
     onDismissActionError
@@ -281,6 +288,9 @@ function BranchViewInner(props: {
               onToggleCodexOtelReceiver={onToggleCodexOtelReceiver}
               onOpenCodexOtelDocs={onOpenCodexOtelDocs}
               codexPromptExport={codexPromptExport}
+              attributionPrefs={attributionPrefs}
+              onUpdateAttributionPrefs={onUpdateAttributionPrefs}
+              onPurgeAttributionMetadata={onPurgeAttributionMetadata}
               // Tests
               testRun={testRun}
               onTestFileClick={handleFileClickFromTest}
@@ -316,6 +326,9 @@ export function BranchView(props: {
   onToggleCodexOtelReceiver?: (enabled: boolean) => void;
   onOpenCodexOtelDocs?: () => void;
   codexPromptExport?: { enabled: boolean | null; configPath: string | null };
+  attributionPrefs?: AttributionPrefs | null;
+  onUpdateAttributionPrefs?: (update: AttributionPrefsUpdate) => void;
+  onPurgeAttributionMetadata?: () => void;
   onUnlinkSession?: (sessionId: string) => void;
   actionError?: string | null;
   onDismissActionError?: () => void;

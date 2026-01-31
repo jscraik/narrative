@@ -71,6 +71,52 @@ export interface AttributionNoteExportSummary {
   status: string;
 }
 
+export interface AttributionCoverageSummary {
+  totalChangedLines: number;
+  attributedLines: number;
+  coveragePercent: number;
+}
+
+export interface AttributionNoteSummary {
+  commitSha: string;
+  hasNote: boolean;
+  noteRef?: string;
+  noteHash?: string;
+  schemaVersion?: string;
+  metadataAvailable: boolean;
+  metadataCached: boolean;
+  promptCount?: number;
+  coverage?: AttributionCoverageSummary;
+  evidenceSource?: string;
+}
+
+export interface AttributionPrefs {
+  repoId: number;
+  cachePromptMetadata: boolean;
+  storePromptText: boolean;
+  showLineOverlays: boolean;
+  retentionDays?: number;
+  lastPurgedAt?: string | null;
+}
+
+export interface AttributionPrefsUpdate {
+  cachePromptMetadata?: boolean;
+  storePromptText?: boolean;
+  showLineOverlays?: boolean;
+  retentionDays?: number;
+  clearRetentionDays?: boolean;
+}
+
+export interface GitAiCliStatus {
+  available: boolean;
+  version?: string;
+  error?: string;
+}
+
+export interface AttributionPromptPurgeSummary {
+  removed: number;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -150,6 +196,32 @@ export async function exportAttributionNote(
   commitSha: string
 ): Promise<AttributionNoteExportSummary> {
   return invoke('export_attribution_note', { repoId, commitSha });
+}
+
+export async function getAttributionNoteSummary(
+  repoId: number,
+  commitSha: string
+): Promise<AttributionNoteSummary> {
+  return invoke('get_attribution_note_summary', { repoId, commitSha });
+}
+
+export async function getAttributionPrefs(repoId: number): Promise<AttributionPrefs> {
+  return invoke('get_attribution_prefs', { repoId });
+}
+
+export async function setAttributionPrefs(
+  repoId: number,
+  update: AttributionPrefsUpdate
+): Promise<AttributionPrefs> {
+  return invoke('set_attribution_prefs', { repoId, update });
+}
+
+export async function purgeAttributionPromptMeta(repoId: number): Promise<AttributionPromptPurgeSummary> {
+  return invoke('purge_attribution_prompt_meta', { repoId });
+}
+
+export async function getGitAiCliStatus(): Promise<GitAiCliStatus> {
+  return invoke('get_git_ai_cli_status');
 }
 
 // ============================================================================

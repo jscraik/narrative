@@ -3,12 +3,17 @@ import { invoke } from '@tauri-apps/api/core';
 import {
   exportAttributionNote,
   getCommitContributionStats,
+  getAttributionNoteSummary,
+  getAttributionPrefs,
+  getGitAiCliStatus,
   importAttributionNote,
+  setAttributionPrefs,
   type ContributionStats
 } from '../core/attribution-api';
+import type { AttributionNoteSummary, AttributionPrefs, GitAiCliStatus } from '../core/attribution-api';
 import type { SourceLine } from '../ui/components/AuthorBadge';
 
-const LIMIT = 100;
+const LIMIT = 200; // Balance between UX (context) and render cost for large files.
 
 export interface SourceLensResult {
   lines: SourceLine[];
@@ -26,6 +31,9 @@ export interface UseSourceLensDataReturn {
   // Data
   lines: SourceLine[];
   stats: ContributionStats | null;
+  noteSummary: AttributionNoteSummary | null;
+  prefs: AttributionPrefs | null;
+  cliStatus: GitAiCliStatus | null;
   // Loading states
   loading: boolean;
   syncing: boolean;
@@ -35,12 +43,14 @@ export interface UseSourceLensDataReturn {
   // Error states
   error: string | null;
   statsError: string | null;
+  noteSummaryError: string | null;
   syncStatus: string | null;
   // Actions
   loadMore: () => void;
   refreshAttribution: () => void;
   handleImportNote: () => Promise<void>;
   handleExportNote: () => Promise<void>;
+  handleEnableMetadata: () => Promise<void>;
 }
 
 export function useSourceLensData({
@@ -55,6 +65,10 @@ export function useSourceLensData({
   const [hasMore, setHasMore] = useState(false);
   const [stats, setStats] = useState<ContributionStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [noteSummary, setNoteSummary] = useState<AttributionNoteSummary | null>(null);
+  const [noteSummaryError, setNoteSummaryError] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState<AttributionPrefs | null>(null);
+  const [cliStatus, setCliStatus] = useState<GitAiCliStatus | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
@@ -74,7 +88,9 @@ export function useSourceLensData({
           },
         });
 
-        setLines(result.lines);
+        setLines((previous) =>
+          requestedOffset === 0 ? result.lines : [...previous, ...result.lines]
+        );
         setHasMore(result.hasMore);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -95,11 +111,42 @@ export function useSourceLensData({
     }
   }, [commitSha, repoId]);
 
+  const loadNoteSummary = useCallback(async () => {
+    setNoteSummaryError(null);
+    try {
+      const summary = await getAttributionNoteSummary(repoId, commitSha);
+      setNoteSummary(summary);
+    } catch (e) {
+      setNoteSummaryError(e instanceof Error ? e.message : String(e));
+    }
+  }, [commitSha, repoId]);
+
+  const loadPrefs = useCallback(async () => {
+    try {
+      const result = await getAttributionPrefs(repoId);
+      setPrefs(result);
+    } catch (e) {
+      setSyncStatus(e instanceof Error ? e.message : String(e));
+    }
+  }, [repoId]);
+
+  const loadCliStatus = useCallback(async () => {
+    try {
+      const result = await getGitAiCliStatus();
+      setCliStatus(result);
+    } catch {
+      setCliStatus({ available: false });
+    }
+  }, []);
+
   useEffect(() => {
     setOffset(0);
     loadAttribution(0);
     loadStats();
-  }, [loadAttribution, loadStats]);
+    loadNoteSummary();
+    loadPrefs();
+    loadCliStatus();
+  }, [loadAttribution, loadStats, loadNoteSummary, loadPrefs, loadCliStatus]);
 
   const loadMore = useCallback(() => {
     const nextOffset = offset + LIMIT;
@@ -111,14 +158,21 @@ export function useSourceLensData({
     setOffset(0);
     loadAttribution(0);
     loadStats();
-  }, [loadAttribution, loadStats]);
+    loadNoteSummary();
+  }, [loadAttribution, loadStats, loadNoteSummary]);
 
   const handleImportNote = useCallback(async () => {
     setSyncing(true);
     setSyncStatus(null);
     try {
       const summary = await importAttributionNote(repoId, commitSha);
-      setSyncStatus(`Imported ${summary.importedRanges} ranges from attribution note.`);
+      if (summary.status === 'missing') {
+        setSyncStatus('No attribution note found for this commit.');
+      } else if (summary.status === 'invalid') {
+        setSyncStatus('Attribution note was empty or invalid.');
+      } else {
+        setSyncStatus(`Imported ${summary.importedRanges} ranges from attribution note.`);
+      }
       refreshAttribution();
     } catch (e) {
       setSyncStatus(e instanceof Error ? e.message : String(e));
@@ -140,19 +194,41 @@ export function useSourceLensData({
     }
   }, [commitSha, repoId]);
 
+  const handleEnableMetadata = useCallback(async () => {
+    setSyncing(true);
+    setSyncStatus(null);
+    try {
+      await setAttributionPrefs(repoId, { cachePromptMetadata: true });
+      await importAttributionNote(repoId, commitSha);
+      await loadPrefs();
+      await loadNoteSummary();
+      setSyncStatus('Enabled prompt metadata caching for this repo.');
+      refreshAttribution();
+    } catch (e) {
+      setSyncStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSyncing(false);
+    }
+  }, [commitSha, loadNoteSummary, loadPrefs, refreshAttribution, repoId]);
+
   return {
     lines,
     stats,
+    noteSummary,
+    prefs,
+    cliStatus,
     loading,
     syncing,
     offset,
     hasMore,
     error,
     statsError,
+    noteSummaryError,
     syncStatus,
     loadMore,
     refreshAttribution,
     handleImportNote,
     handleExportNote,
+    handleEnableMetadata,
   };
 }

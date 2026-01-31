@@ -7,7 +7,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  generate-icons:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install icon tooling
+        run: python3 -m pip install --upgrade pip pillow
+
+      - name: Generate Tauri icons
+        run: python3 scripts/generate-icons-pil.py
+
+      - name: Upload icons artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-icons
+          path: src-tauri/icons
+
   build:
+    needs: generate-icons
     permissions:
       contents: write
     strategy:
@@ -26,6 +49,12 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download icons artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-icons
+          path: src-tauri/icons
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

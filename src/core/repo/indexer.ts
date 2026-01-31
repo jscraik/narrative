@@ -210,7 +210,7 @@ export async function indexRepo(
     traceSummaries: { byCommit: trace.byCommit, byFileByCommit: trace.byFileByCommit },
     traceStatus: otelIngest.status,
     traceConfig,
-    meta: { repoPath: root, branchName: branch, headSha }
+    meta: { repoPath: root, branchName: branch, headSha, repoId }
   };
 
   reportProgress('done', 'Index complete', commits.length, commits.length);

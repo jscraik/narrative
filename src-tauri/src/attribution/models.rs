@@ -1,5 +1,6 @@
 //! Data models for attribution tracking
 
+use super::coverage::AttributionCoverageSummary;
 use serde::{Deserialize, Serialize};
 
 /// Statistics about a commit's contributions
@@ -85,6 +86,27 @@ pub struct SourceLensPage {
     pub lines: Vec<SourceLine>,
     pub total_lines: u32,
     pub has_more: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributionNoteSummary {
+    pub commit_sha: String,
+    pub has_note: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note_hash: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema_version: Option<String>,
+    pub metadata_available: bool,
+    pub metadata_cached: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_count: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coverage: Option<AttributionCoverageSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evidence_source: Option<String>,
 }
 
 /// Errors that can occur in attribution operations

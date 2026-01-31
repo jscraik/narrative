@@ -16,13 +16,21 @@
 //! - `line_attribution.rs` - Line attribution storage and retrieval
 //! - `git_utils.rs` - Git operations (diff, patch-id, file listing)
 //! - `utils.rs` - Shared utilities (repo root fetching, session metadata)
+//! - `cli.rs` - git-ai CLI detection
+//! - `coverage.rs` - Attribution coverage computation
+//! - `note_meta.rs` - Note metadata persistence
+//! - `prefs.rs` - Attribution preferences storage
 
+pub mod cli;
 pub mod commands;
+pub mod coverage;
 pub mod git_utils;
 pub mod line_attribution;
 pub mod models;
+pub mod note_meta;
 pub mod notes;
 pub mod notes_io;
+pub mod prefs;
 pub mod session_stats;
 pub mod source_lens;
 pub mod stats;

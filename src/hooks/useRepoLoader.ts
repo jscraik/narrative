@@ -4,6 +4,13 @@ import { detectCodexOtelPromptExport } from '../core/repo/codexConfig';
 import { indexRepo, type IndexingProgress, type RepoIndex } from '../core/repo/indexer';
 import { setActiveRepoRoot, setOtelReceiverEnabled } from '../core/tauri/otelReceiver';
 import type { BranchViewModel } from '../core/types';
+import {
+  getAttributionPrefs,
+  purgeAttributionPromptMeta,
+  setAttributionPrefs,
+  type AttributionPrefs,
+  type AttributionPrefsUpdate
+} from '../core/attribution-api';
 
 export type RepoState =
   | { status: 'idle' }
@@ -16,9 +23,12 @@ export interface UseRepoLoaderReturn {
   setRepoState: React.Dispatch<React.SetStateAction<RepoState>>;
   indexingProgress: IndexingProgress | null;
   codexPromptExport: { enabled: boolean | null; configPath: string | null };
+  attributionPrefs: AttributionPrefs | null;
   actionError: string | null;
   setActionError: (error: string | null) => void;
   openRepo: () => Promise<void>;
+  updateAttributionPrefs: (update: AttributionPrefsUpdate) => Promise<void>;
+  purgeAttributionMetadata: () => Promise<void>;
   diffCache: React.MutableRefObject<{ clear(): void }>;
 }
 
@@ -33,6 +43,7 @@ export function useRepoLoader(): UseRepoLoaderReturn {
     enabled: boolean | null;
     configPath: string | null;
   }>({ enabled: null, configPath: null });
+  const [attributionPrefs, setAttributionPrefsState] = useState<AttributionPrefs | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   // LRU cache for commit diffs - bounded to prevent memory leaks
@@ -42,6 +53,16 @@ export function useRepoLoader(): UseRepoLoaderReturn {
 
   useEffect(() => {
     repoStateRef.current = repoState;
+  }, [repoState]);
+
+  useEffect(() => {
+    if (repoState.status !== 'ready') {
+      setAttributionPrefsState(null);
+      return;
+    }
+    getAttributionPrefs(repoState.repo.repoId)
+      .then((prefs) => setAttributionPrefsState(prefs))
+      .catch((e) => setActionError(e instanceof Error ? e.message : String(e)));
   }, [repoState]);
 
   const openRepo = useCallback(async () => {
@@ -72,6 +93,8 @@ export function useRepoLoader(): UseRepoLoaderReturn {
         await setOtelReceiverEnabled(receiverEnabled);
         const promptExport = await detectCodexOtelPromptExport();
         setCodexPromptExport(promptExport);
+        const prefs = await getAttributionPrefs(repo.repoId);
+        setAttributionPrefsState(prefs);
       } catch (e: unknown) {
         setActionError(e instanceof Error ? e.message : String(e));
       }
@@ -85,14 +108,38 @@ export function useRepoLoader(): UseRepoLoaderReturn {
     }
   }, []);
 
+  const updateAttributionPrefs = useCallback(async (update: AttributionPrefsUpdate) => {
+    if (repoStateRef.current.status !== 'ready') return;
+    try {
+      const prefs = await setAttributionPrefs(repoStateRef.current.repo.repoId, update);
+      setAttributionPrefsState(prefs);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  const purgeAttributionMetadata = useCallback(async () => {
+    if (repoStateRef.current.status !== 'ready') return;
+    try {
+      await purgeAttributionPromptMeta(repoStateRef.current.repo.repoId);
+      const prefs = await getAttributionPrefs(repoStateRef.current.repo.repoId);
+      setAttributionPrefsState(prefs);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
   return {
     repoState,
     setRepoState,
     indexingProgress,
     codexPromptExport,
+    attributionPrefs,
     actionError,
     setActionError,
     openRepo,
+    updateAttributionPrefs,
+    purgeAttributionMetadata,
     diffCache: diffCache as unknown as React.MutableRefObject<{ clear(): void }>,
   };
 }
