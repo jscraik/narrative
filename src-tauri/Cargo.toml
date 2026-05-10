@@ -33,7 +33,7 @@ bytes = "1"
 opentelemetry-proto = { version = "0.6", features = ["gen-tonic-messages", "trace", "logs"] }
 prost = "0.12"
 keyring = "2.3"
-rand = "0.8"
+rand = "0.9"
 
 # Attribution tracking dependencies
 git2 = "0.20"

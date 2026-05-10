@@ -114,7 +114,7 @@ jobs:
 
       - name: Resolve GitHub Release ID (by tag)
         id: resolve_release
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@v9.0.0
         env:
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
         with:
@@ -170,7 +170,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Verify required assets exist on the tag release
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@v9.0.0
         env:
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
         with:

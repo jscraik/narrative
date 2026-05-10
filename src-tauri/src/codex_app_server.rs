@@ -5,7 +5,7 @@ use crate::recovery_checkpoint::{
     TRUST_PAUSE_REASON_SNAPSHOT_TIMEOUT, TRUST_PAUSE_REASON_THREAD_MISMATCH,
 };
 use crate::secret_store;
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{distr::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
@@ -542,7 +542,7 @@ impl Default for CodexAppServerRuntime {
             sidecar_stderr_ring: VecDeque::new(),
             sidecar_stderr_dropped: 0,
             last_stream_event_at_epoch_ms: None,
-            approval_window_id: rand::thread_rng().gen(),
+            approval_window_id: rand::rng().random(),
             thread_read_results: HashMap::new(),
             thread_read_errors: HashMap::new(),
         }
@@ -667,11 +667,11 @@ fn validate_and_redact_auth_url(url: &str) -> Result<String, String> {
 }
 
 fn generate_approval_window_id() -> u64 {
-    rand::thread_rng().gen()
+    rand::rng().random()
 }
 
 fn generate_approval_decision_token() -> String {
-    rand::thread_rng()
+    rand::rng()
         .sample_iter(&Alphanumeric)
         .take(APPROVAL_TOKEN_BYTES)
         .map(char::from)

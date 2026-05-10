@@ -56,7 +56,7 @@ pub fn delete_otlp_api_key() -> Result<(), String> {
 pub fn generate_otlp_api_key_hex() -> String {
     // 24 bytes => 48 hex chars
     let mut bytes = [0u8; 24];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
 }
 

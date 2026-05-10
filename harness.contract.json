@@ -636,6 +636,7 @@
       "chore/*",
       "refactor/*",
       "codex/*",
+      "dependabot/**",
       "release-please--**"
     ],
     "protectedBranchDenylist": [
