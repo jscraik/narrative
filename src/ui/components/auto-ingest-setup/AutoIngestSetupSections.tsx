@@ -1,8 +1,9 @@
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import type { ReactNode } from "react";
-import type {
-	CaptureReliabilityStatus,
-	CollectorMigrationStatus,
+import {
+	AUTH_URL_HINT_PREFIX,
+	type CaptureReliabilityStatus,
+	type CollectorMigrationStatus,
 } from "../../../core/tauri/ingestConfig";
 import { HelpPopover } from "../HelpPopover";
 import { Toggle } from "../Toggle";
@@ -66,8 +67,8 @@ export function CaptureModeCard(props: {
 	const appServerStatus = captureReliability?.appServer;
 	const authUrl = (() => {
 		const hint = appServerStatus?.lastError?.trim();
-		if (!hint || !hint.startsWith("Complete login in browser:")) return null;
-		const value = hint.slice("Complete login in browser:".length).trim();
+		if (!hint?.startsWith(AUTH_URL_HINT_PREFIX)) return null;
+		const value = hint.slice(AUTH_URL_HINT_PREFIX.length).trim();
 		if (!value) return null;
 		try {
 			const parsed = new URL(value);

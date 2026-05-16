@@ -41,8 +41,8 @@ export type AskWhyTelemetryEventName =
 
 // Re-export types for convenience
 export type {
-	AskWhyConfidenceBand,
 	AskWhyCitationType,
+	AskWhyConfidenceBand,
 	AskWhyFallbackReasonCode,
 };
 

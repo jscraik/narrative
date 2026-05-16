@@ -11,6 +11,7 @@ import {
 import { refreshSessionBadges } from "../core/repo/sessionBadges";
 import { type ActivityEvent, getIngestActivity } from "../core/tauri/activity";
 import {
+	AUTH_URL_HINT_PREFIX,
 	autoImportSessionFile,
 	backfillRecentSessions,
 	type CaptureReliabilityStatus,
@@ -68,13 +69,11 @@ export type IngestToast = {
 	message: string;
 };
 
-const AUTH_URL_HINT_PREFIX = "Complete login in browser:";
-
 function extractAuthUrlFromStatus(
 	status: CodexAppServerStatus | null | undefined,
 ): string | null {
 	const hint = status?.lastError?.trim();
-	if (!hint || !hint.startsWith(AUTH_URL_HINT_PREFIX)) return null;
+	if (!hint?.startsWith(AUTH_URL_HINT_PREFIX)) return null;
 	const url = hint.slice(AUTH_URL_HINT_PREFIX.length).trim();
 	if (!url) return null;
 	try {
