@@ -74,7 +74,7 @@ function extractAuthUrlFromStatus(
 	status: CodexAppServerStatus | null | undefined,
 ): string | null {
 	const hint = status?.lastError?.trim();
-	if (!hint || !hint.startsWith(AUTH_URL_HINT_PREFIX)) return null;
+	if (!hint?.startsWith(AUTH_URL_HINT_PREFIX)) return null;
 	const url = hint.slice(AUTH_URL_HINT_PREFIX.length).trim();
 	if (!url) return null;
 	try {

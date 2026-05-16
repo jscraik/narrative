@@ -66,7 +66,7 @@ export function CaptureModeCard(props: {
 	const appServerStatus = captureReliability?.appServer;
 	const authUrl = (() => {
 		const hint = appServerStatus?.lastError?.trim();
-		if (!hint || !hint.startsWith("Complete login in browser:")) return null;
+		if (!hint?.startsWith("Complete login in browser:")) return null;
 		const value = hint.slice("Complete login in browser:".length).trim();
 		if (!value) return null;
 		try {
