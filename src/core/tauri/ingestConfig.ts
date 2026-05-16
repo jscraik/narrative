@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export const AUTH_URL_HINT_PREFIX = "Complete login in browser:";
+
 export type IngestConfig = {
 	autoIngestEnabled: boolean;
 	watchPaths: { claude: string[]; cursor: string[]; codexLogs: string[] };
