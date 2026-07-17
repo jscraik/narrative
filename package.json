@@ -2,6 +2,7 @@
   "name": "trace-narrative",
   "private": true,
   "version": "0.20.1",
+  "packageManager": "pnpm@10.0.0",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -101,7 +102,7 @@
     "@axe-core/react": "^4.11.1",
     "@biomejs/biome": "^2.3.13",
     "@brainwav/coding-harness": "^0.12.0",
-    "@brainwav/design-system-guidance": "^0.0.2",
+    "@brainwav/design-system-guidance": "file:vendor/brainwav/brainwav-design-system-guidance-0.0.2.tgz",
     "@lhci/cli": "^0.15.1",
     "@openai/codex": "0.107.0",
     "@playwright/test": "^1.58.2",
