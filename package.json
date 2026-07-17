@@ -2,7 +2,7 @@
   "name": "trace-narrative",
   "private": true,
   "version": "0.20.1",
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@9.0.0",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
