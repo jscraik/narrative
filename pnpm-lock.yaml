@@ -5,8 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@design-studio/runtime': file:vendor/design-studio/design-studio-runtime-2.0.0.tgz
-  '@design-studio/tokens': file:vendor/design-studio/design-studio-tokens-2.0.0.tgz
+  '@design-studio/ui>@design-studio/runtime': file:vendor/design-studio/design-studio-runtime-2.0.0.tgz
+  '@design-studio/ui>@design-studio/tokens': file:vendor/design-studio/design-studio-tokens-2.0.0.tgz
   basic-ftp: ^6.0.1
   brace-expansion: ^5.0.5
   '@hono/node-server': 1.19.13
@@ -128,8 +128,8 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(@octokit/core@7.0.6)(@types/node@25.1.0)
       '@brainwav/design-system-guidance':
-        specifier: ^0.0.2
-        version: 0.0.2
+        specifier: file:vendor/brainwav/brainwav-design-system-guidance-0.0.2.tgz
+        version: file:vendor/brainwav/brainwav-design-system-guidance-0.0.2.tgz
       '@lhci/cli':
         specifier: ^0.15.1
         version: 0.15.1
@@ -374,8 +374,9 @@ packages:
     engines: {node: '>=24.0.0'}
     hasBin: true
 
-  '@brainwav/design-system-guidance@0.0.2':
-    resolution: {integrity: sha512-lli4/6vYlTBZFVbOT1/f9n4tdhqlFPOe6vVGBT6hzXXLmUtU34FhEshIY+TC2dVTrPZaC1cMB/rr47GwO7Uidw==}
+  '@brainwav/design-system-guidance@file:vendor/brainwav/brainwav-design-system-guidance-0.0.2.tgz':
+    resolution: {integrity: sha512-tSlPh5UWo6HDNFKfNt4iEmt78U6KCbtqqauWY3QXJbBwRLvpwbmOhp0bGyUWRX00vtcKOPZRXpQ+cJ+qv0jg7w==, tarball: file:vendor/brainwav/brainwav-design-system-guidance-0.0.2.tgz}
+    version: 0.0.2
     hasBin: true
 
   '@bramus/specificity@2.4.2':
@@ -2307,6 +2308,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@vitejs/plugin-react@4.7.0':
     resolution: {integrity: sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==}
@@ -4675,8 +4677,8 @@ packages:
   third-party-web@0.26.7:
     resolution: {integrity: sha512-buUzX4sXC4efFX6xg2bw6/eZsCUh8qQwSavC4D9HpONMFlRbcHhD8Je5qwYdCpViR6q0qla2wPP+t91a2vgolg==}
 
-  third-party-web@0.29.0:
-    resolution: {integrity: sha512-nBDSJw5B7Sl1YfsATG2XkW5qgUPODbJhXw++BKygi9w6O/NKS98/uY/nR/DxDq2axEjL6halHW1v+jhm/j1DBQ==}
+  third-party-web@0.29.2:
+    resolution: {integrity: sha512-fegtha91tq2DHphyoiBXVHjVi2YG9zFaRnboT9C28tO1en9Y3wJsfspuy40F+u5wl3hHVbw7cnd1b67kEGHb8g==}
 
   through@2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
@@ -4874,6 +4876,7 @@ packages:
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   vary@1.1.2:
@@ -5320,7 +5323,7 @@ snapshots:
       - '@octokit/core'
       - '@types/node'
 
-  '@brainwav/design-system-guidance@0.0.2': {}
+  '@brainwav/design-system-guidance@file:vendor/brainwav/brainwav-design-system-guidance-0.0.2.tgz': {}
 
   '@bramus/specificity@2.4.2':
     dependencies:
@@ -5979,7 +5982,7 @@ snapshots:
   '@paulirish/trace_engine@0.0.53':
     dependencies:
       legacy-javascript: 0.0.1
-      third-party-web: 0.29.0
+      third-party-web: 0.29.2
 
   '@playwright/test@1.58.2':
     dependencies:
@@ -10162,7 +10165,7 @@ snapshots:
 
   third-party-web@0.26.7: {}
 
-  third-party-web@0.29.0: {}
+  third-party-web@0.29.2: {}
 
   through@2.3.8: {}
 
