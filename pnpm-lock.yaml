@@ -5,8 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@design-studio/runtime': file:vendor/design-studio/design-studio-runtime-2.0.0.tgz
-  '@design-studio/tokens': file:vendor/design-studio/design-studio-tokens-2.0.0.tgz
+  '@design-studio/ui>@design-studio/runtime': file:vendor/design-studio/design-studio-runtime-2.0.0.tgz
+  '@design-studio/ui>@design-studio/tokens': file:vendor/design-studio/design-studio-tokens-2.0.0.tgz
   basic-ftp: ^6.0.1
   brace-expansion: ^5.0.5
   '@hono/node-server': 1.19.13
@@ -31,10 +31,10 @@ importers:
   .:
     dependencies:
       '@design-studio/runtime':
-        specifier: file:/private/tmp/trace-pr-queue-repair/vendor/design-studio/design-studio-runtime-2.0.0.tgz
+        specifier: file:vendor/design-studio/design-studio-runtime-2.0.0.tgz
         version: file:vendor/design-studio/design-studio-runtime-2.0.0.tgz(react@19.2.4)
       '@design-studio/tokens':
-        specifier: file:/private/tmp/trace-pr-queue-repair/vendor/design-studio/design-studio-tokens-2.0.0.tgz
+        specifier: file:vendor/design-studio/design-studio-tokens-2.0.0.tgz
         version: file:vendor/design-studio/design-studio-tokens-2.0.0.tgz(react@19.2.4)
       '@design-studio/ui':
         specifier: file:vendor/design-studio/design-studio-ui-0.0.1.tgz
